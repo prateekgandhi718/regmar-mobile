@@ -1,0 +1,14 @@
+node_modules
+dist
+.env
+.env.local
+.env.*.local
+*.log
+.git
+.gitignore
+README.md
+.vscode
+.idea
+*.md
+.DS_Store
+python/.venv

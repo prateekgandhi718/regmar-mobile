@@ -1,0 +1,20 @@
+version: "3.9"
+
+services:
+  backend:
+    build: .
+    image: regmar-backend
+    container_name: regmar-backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    restart: unless-stopped
+    depends_on:
+      - python-backend
+
+  python-backend:
+    build: ./python
+    image: regmar-python-backend
+    container_name: regmar-python-backend
+    restart: unless-stopped

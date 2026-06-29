@@ -1,0 +1,21 @@
+[project]
+name = "ultimate-portfolio"
+version = "0.1.0"
+description = "Portfolio optimization utilities (yfinance + PyPortfolioOpt)."
+requires-python = ">=3.11, <3.12"
+dependencies = [
+  "yfinance",
+  "pandas",
+  "numpy",
+  "PyPortfolioOpt",
+  "cvxpy",
+  "fastapi",
+  "uvicorn[standard]",
+  "scikit-learn",
+  "joblib",
+  "spacy",
+]
+
+[tool.uv]
+# uv will create and manage a local virtual environment (commonly `.venv/`)
+# and a lockfile (`uv.lock`) when you run `uv lock`.
