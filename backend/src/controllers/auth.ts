@@ -1,74 +1,46 @@
 import { Request, Response } from 'express';
-import { createOtp, getOtpByEmail, deleteOtpsByEmail } from '../db/otpModel';
-import { getUserByEmail, createUser, updateUserById, getUserById } from '../db/userModel';
-import { sendOtpEmail } from '../helpers/mailer';
-import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../helpers/jwt';
+import { createUser, updateUserById, getUserById, getUserByDeviceUuid } from '../db/userModel';
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken, hashRefreshToken } from '../helpers/jwt';
 
-export const requestOtp = async (req: Request, res: Response) => {
-  const { email, mode } = req.body;
+const toSafeUser = (user: any) => ({
+  id: user._id,
+  name: user.name,
+  pan: user.pan,
+  primaryColor: user.primaryColor,
+});
 
-  if (!email) {
-    return res.status(400).json({ message: 'Email is required' });
+export const registerDevice = async (req: Request, res: Response) => {
+  const { deviceUuid, name } = req.body as { deviceUuid?: string; name?: string };
+
+  if (!deviceUuid || typeof deviceUuid !== 'string') {
+    return res.status(400).json({ message: 'deviceUuid is required' });
+  }
+
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return res.status(400).json({ message: 'name is required' });
   }
 
   try {
-    const user = await getUserByEmail(email);
+    let user = await getUserByDeviceUuid(deviceUuid);
 
-    if (mode === 'login' && !user) {
-      return res.status(404).json({ message: 'User not found. Please sign up.' });
-    }
-
-    if (mode === 'signup' && user) {
-      return res.status(400).json({ message: 'User already exists. Please log in.' });
-    }
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    await createOtp({ email, otp });
-    await sendOtpEmail(email, otp);
-
-    res.status(200).json({ message: 'OTP sent to your email' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
-export const verifyOtp = async (req: Request, res: Response) => {
-  const { email, otp, name } = req.body;
-
-  if (!email || !otp) {
-    return res.status(400).json({ message: 'Email and OTP are required' });
-  }
-
-  try {
-    const otpRecord = await getOtpByEmail(email);
-
-    if (!otpRecord || otpRecord.otp !== otp) {
-      return res.status(400).json({ message: 'Invalid or expired OTP' });
-    }
-
-    await deleteOtpsByEmail(email);
-
-    let user = await getUserByEmail(email);
     if (!user) {
-      user = await createUser({ email, name });
+      user = await createUser({ deviceUuid, name: name.trim() });
+    } else if ((!user.name || !user.name.trim()) && name.trim()) {
+      user = await updateUserById(user._id.toString(), { name: name.trim() });
     }
+
+    if (!user) return res.status(500).json({ message: 'Failed to resolve user' });
 
     const accessToken = generateAccessToken(user._id.toString());
     const refreshToken = generateRefreshToken(user._id.toString());
+    const refreshTokenHash = hashRefreshToken(refreshToken);
 
-    await updateUserById(user._id.toString(), { refreshToken });
+    await updateUserById(user._id.toString(), { refreshTokenHash });
 
     res.status(200).json({
       accessToken,
       refreshToken,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        pan: user.pan,
-        primaryColor: user.primaryColor,
-      },
+      user: toSafeUser(user),
     });
   } catch (error) {
     console.error(error);
@@ -86,15 +58,17 @@ export const refreshToken = async (req: Request, res: Response) => {
   try {
     const decoded = verifyRefreshToken(refreshToken);
     const user = await getUserById(decoded.userId);
+    const currentHash = hashRefreshToken(refreshToken);
 
-    if (!user || user.refreshToken !== refreshToken) {
+    if (!user || user.refreshTokenHash !== currentHash) {
       return res.status(403).json({ message: 'Invalid refresh token' });
     }
 
     const newAccessToken = generateAccessToken(user._id.toString());
     const newRefreshToken = generateRefreshToken(user._id.toString());
+    const newRefreshTokenHash = hashRefreshToken(newRefreshToken);
 
-    await updateUserById(user._id.toString(), { refreshToken: newRefreshToken });
+    await updateUserById(user._id.toString(), { refreshTokenHash: newRefreshTokenHash });
 
     res.status(200).json({
       accessToken: newAccessToken,
