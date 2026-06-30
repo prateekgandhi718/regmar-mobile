@@ -166,7 +166,7 @@ export function LiquidGlassTabBar({ state, descriptors, navigation }: BottomTabB
 
   if (shouldUseNativeLiquidGlass) {
     return (
-      <View style={[styles.container, { paddingBottom: Math.max(insets.bottom - 8, 0) }]}>
+      <View style={[styles.container, { paddingBottom: Math.max(insets.bottom - 18, 0) }]}>
         <GlassContainer spacing={8} style={styles.shellContainer}>
           <GlassView style={styles.shell} glassEffectStyle="regular" colorScheme={colorScheme} isInteractive />
           <View style={styles.overlayRow}>{shellBody}</View>
