@@ -27,7 +27,7 @@ export function HomeScreen() {
   }, []);
 
   return (
-    <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-zinc-50 dark:bg-zinc-950">
+    <SafeAreaView edges={["top"]} className="flex-1 bg-zinc-50 dark:bg-zinc-950">
       <View className="flex-1">
         <View className="w-full flex-row items-center justify-between px-6 pt-3">
           <View className="flex-row items-center gap-2">
@@ -37,7 +37,7 @@ export function HomeScreen() {
           <ModeToggle />
         </View>
 
-        <View className="flex-1 px-6 pb-6 pt-8">
+        <View className="flex-1 px-6 pb-32 pt-8">
           <Text className="text-base font-medium text-zinc-600 dark:text-zinc-300">Hello, {name}!</Text>
           <Text className="mt-2 text-3xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">Your Summary</Text>
           <Text className="mt-2 text-base text-zinc-600 dark:text-zinc-300">This will show your latest transaction insights.</Text>

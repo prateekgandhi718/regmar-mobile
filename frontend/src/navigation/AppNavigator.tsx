@@ -1,15 +1,15 @@
 import { DarkTheme, DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useTheme } from "@/components/providers/theme-provider";
+import { MainTabsNavigator } from "@/navigation/MainTabsNavigator";
 import { useAppSelector } from "@/redux/hooks";
 import { LandingScreen } from "@/screens/auth/LandingScreen";
 import { OnboardingScreen } from "@/screens/auth/OnboardingScreen";
-import { HomeScreen } from "@/screens/main/HomeScreen";
 
 export type RootStackParamList = {
   Landing: undefined;
   Onboarding: undefined;
-  Home: undefined;
+  MainTabs: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -20,11 +20,11 @@ export function AppNavigator() {
 
   return (
     <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
-      <Stack.Navigator initialRouteName={isAuthenticated ? "Home" : "Landing"}>
+      <Stack.Navigator initialRouteName={isAuthenticated ? "MainTabs" : "Landing"}>
         {isAuthenticated ? (
           <Stack.Screen
-            name="Home"
-            component={HomeScreen}
+            name="MainTabs"
+            component={MainTabsNavigator}
             options={{
               headerShown: false,
             }}
