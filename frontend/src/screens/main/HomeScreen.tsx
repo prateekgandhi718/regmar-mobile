@@ -4,7 +4,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { EmailLinkGate } from "@/components/email/EmailLinkGate";
 import { FiyLogo } from "@/components/fiy-logo";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
-import { ModeToggle } from "@/components/mode-toggle";
 import { getStoredName } from "@/lib/auth-storage";
 
 export function HomeScreen() {
@@ -37,7 +36,6 @@ export function HomeScreen() {
               FIY
             </Text>
           </View>
-          <ModeToggle />
         </View>
 
         <View className="flex-1 px-6 pb-32 pt-8">

@@ -218,15 +218,33 @@ export function EmailLinkGate({ title, description, children, showLinkedStateWhe
 
   const linkedStateCard = linkedEmailAccount ? (
     <View className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-      <Text className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Linked Email</Text>
+      <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center gap-2">
+          <View className="h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: withOpacity(colors.primary, 0.14) }}>
+            <Feather name="check-circle" size={16} color={colors.primary} />
+          </View>
+          <Text className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Linked Email</Text>
+        </View>
+        <View className="rounded-full bg-zinc-100 px-2 py-1 dark:bg-zinc-800">
+          <Text className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+            Active
+          </Text>
+        </View>
+      </View>
       <Text className="mt-2 text-base font-semibold text-zinc-900 dark:text-zinc-100">{linkedEmailAccount.email}</Text>
       <Text className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
         Provider: {linkedProvider === "icloud" ? "iCloud" : "Gmail"}
       </Text>
 
       <View className="mt-4 flex-row gap-3">
-        <Pressable onPress={openEditDrawer} className="rounded-xl border border-zinc-300 px-4 py-2 dark:border-zinc-700">
-          <Text className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Edit credentials</Text>
+        <Pressable
+          onPress={openEditDrawer}
+          className="rounded-xl border px-4 py-2"
+          style={{ borderColor: withOpacity(colors.primary, 0.45), backgroundColor: withOpacity(colors.primary, 0.08) }}
+        >
+          <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
+            Edit credentials
+          </Text>
         </Pressable>
         <Pressable
           onPress={handleUnlink}
@@ -256,23 +274,34 @@ export function EmailLinkGate({ title, description, children, showLinkedStateWhe
         linkedStateCard
       ) : (
         <View className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <Text className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{title}</Text>
+          <View className="flex-row items-center gap-2">
+            <View className="h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: withOpacity(colors.primary, 0.14) }}>
+              <Feather name="mail" size={16} color={colors.primary} />
+            </View>
+            <Text className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{title}</Text>
+          </View>
           <Text className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{description}</Text>
 
           <View className="mt-4 flex-row gap-3">
             <Pressable
               onPress={() => openCreateDrawer("gmail")}
-              className="flex-row items-center gap-2 rounded-xl border border-zinc-300 px-4 py-2 dark:border-zinc-700"
+              className="flex-row items-center gap-2 rounded-xl border px-4 py-2"
+              style={{ borderColor: withOpacity(colors.primary, 0.45), backgroundColor: withOpacity(colors.primary, 0.08) }}
             >
-              <Feather name="mail" size={14} color={isDark ? "#e4e4e7" : "#27272a"} />
-              <Text className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Link Gmail</Text>
+              <Feather name="mail" size={14} color={colors.primary} />
+              <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
+                Link Gmail
+              </Text>
             </Pressable>
             <Pressable
               onPress={() => openCreateDrawer("icloud")}
-              className="flex-row items-center gap-2 rounded-xl border border-zinc-300 px-4 py-2 dark:border-zinc-700"
+              className="flex-row items-center gap-2 rounded-xl border px-4 py-2"
+              style={{ borderColor: withOpacity(colors.primary, 0.45), backgroundColor: withOpacity(colors.primary, 0.08) }}
             >
-              <Feather name="cloud" size={14} color={isDark ? "#e4e4e7" : "#27272a"} />
-              <Text className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Link iCloud</Text>
+              <Feather name="cloud" size={14} color={colors.primary} />
+              <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
+                Link iCloud
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -308,22 +337,21 @@ export function EmailLinkGate({ title, description, children, showLinkedStateWhe
                       setFormError("");
                     }}
                     className={`flex-1 rounded-xl border px-3 py-3 ${
-                      isActiveProvider
-                        ? "border-zinc-900 bg-zinc-900 dark:border-zinc-100 dark:bg-zinc-100"
-                        : "border-zinc-300 bg-transparent dark:border-zinc-700"
+                      isActiveProvider ? "" : "bg-transparent"
                     }`}
+                    style={
+                      isActiveProvider
+                        ? { borderColor: colors.primary, backgroundColor: colors.primary }
+                        : { borderColor: withOpacity(colors.primary, 0.35) }
+                    }
                   >
                     <View className="flex-row items-center justify-center gap-2">
                       <Feather
                         name={provider.icon}
                         size={14}
-                        color={isActiveProvider ? (isDark ? "#09090b" : "#fafafa") : isDark ? "#e4e4e7" : "#27272a"}
+                        color={isActiveProvider ? colors.onTopOfPrimary : colors.primary}
                       />
-                      <Text
-                        className={`text-sm font-semibold ${
-                          isActiveProvider ? (isDark ? "text-zinc-950" : "text-zinc-50") : "text-zinc-800 dark:text-zinc-100"
-                        }`}
-                      >
+                      <Text className="text-sm font-semibold" style={{ color: isActiveProvider ? colors.onTopOfPrimary : colors.primary }}>
                         {provider.name}
                       </Text>
                     </View>
@@ -381,9 +409,12 @@ export function EmailLinkGate({ title, description, children, showLinkedStateWhe
               ))}
               <Pressable
                 onPress={openAppPasswordHelp}
-                className="mt-3 self-start rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700"
+                className="mt-3 self-start rounded-lg border px-3 py-2"
+                style={{ borderColor: withOpacity(colors.primary, 0.45), backgroundColor: withOpacity(colors.primary, 0.08) }}
               >
-                <Text className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Generate app password</Text>
+                <Text className="text-xs font-semibold" style={{ color: colors.primary }}>
+                  Generate app password
+                </Text>
               </Pressable>
             </View>
 
@@ -393,11 +424,13 @@ export function EmailLinkGate({ title, description, children, showLinkedStateWhe
               <Pressable onPress={() => setDrawerOpen(false)} className="flex-1 rounded-xl border border-zinc-300 px-4 py-3 dark:border-zinc-700">
                 <Text className="text-center text-sm font-semibold text-zinc-900 dark:text-zinc-100">Cancel</Text>
               </Pressable>
-              <Pressable onPress={handleSaveLink} disabled={isSavingLink} className="flex-1 rounded-xl bg-zinc-900 px-4 py-3 dark:bg-zinc-100">
+              <Pressable onPress={handleSaveLink} disabled={isSavingLink} className="flex-1 rounded-xl px-4 py-3" style={{ backgroundColor: colors.primary }}>
                 {isSavingLink ? (
-                  <ActivityIndicator size="small" color={isDark ? "#0a0a0a" : "#fafafa"} />
+                  <ActivityIndicator size="small" color={colors.onTopOfPrimary} />
                 ) : (
-                  <Text className="text-center text-sm font-semibold text-zinc-50 dark:text-zinc-900">{saveButtonLabel}</Text>
+                  <Text className="text-center text-sm font-semibold" style={{ color: colors.onTopOfPrimary }}>
+                    {saveButtonLabel}
+                  </Text>
                 )}
               </Pressable>
             </View>
