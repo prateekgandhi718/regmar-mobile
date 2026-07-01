@@ -14,6 +14,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 
 type TabMeta = {
@@ -32,6 +33,7 @@ const TAB_META: Record<string, TabMeta> = {
 export function LiquidGlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
+  const { colors } = useColorTheme();
   const [reduceTransparencyEnabled, setReduceTransparencyEnabled] = useState(false);
   const [rowWidth, setRowWidth] = useState(0);
 
@@ -88,7 +90,7 @@ export function LiquidGlassTabBar({ state, descriptors, navigation }: BottomTabB
 
   const iconColor = isDark ? "#d4d4d8" : "#52525b";
   const labelColor = isDark ? "#d4d4d8" : "#52525b";
-  const activeColor = isDark ? "#fafafa" : "#18181b";
+  const activeColor = colors.primary;
   const colorScheme = isDark ? "dark" : "light";
 
   const onRowLayout = (event: LayoutChangeEvent) => {

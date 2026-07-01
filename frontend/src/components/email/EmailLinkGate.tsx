@@ -2,7 +2,9 @@ import { ReactNode, useMemo, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import Toast from "react-native-toast-message";
+import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { useTheme } from "@/components/providers/theme-provider";
+import { withOpacity } from "@/theme/color-theme";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import {
   LinkedAccountProvider,
@@ -56,6 +58,7 @@ type EmailLinkGateProps = {
 
 export function EmailLinkGate({ title, description, children, showLinkedStateWhenLinked = false }: EmailLinkGateProps) {
   const { isDark } = useTheme();
+  const { colors } = useColorTheme();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<"create" | "edit">("create");
   const [selectedProvider, setSelectedProvider] = useState<LinkedAccountProvider>("gmail");
@@ -228,12 +231,15 @@ export function EmailLinkGate({ title, description, children, showLinkedStateWhe
         <Pressable
           onPress={handleUnlink}
           disabled={isUnlinkingAccount}
-          className="rounded-xl border border-red-300 px-4 py-2 dark:border-red-800"
+          className="rounded-xl border px-4 py-2"
+          style={{ borderColor: withOpacity(colors.secondary, 0.5) }}
         >
           {isUnlinkingAccount ? (
-            <ActivityIndicator size="small" color={isDark ? "#fca5a5" : "#dc2626"} />
+            <ActivityIndicator size="small" color={colors.secondary} />
           ) : (
-            <Text className="text-sm font-semibold text-red-700 dark:text-red-300">Unlink email</Text>
+            <Text className="text-sm font-semibold" style={{ color: colors.secondary }}>
+              Unlink email
+            </Text>
           )}
         </Pressable>
       </View>

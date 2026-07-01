@@ -1,12 +1,17 @@
 import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { EmailLinkGate } from "@/components/email/EmailLinkGate";
+import { useColorTheme } from "@/components/providers/color-theme-provider";
 
 export function AccountsScreen() {
+  const { colors } = useColorTheme();
+
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-zinc-50 dark:bg-zinc-950">
       <View className="flex-1 px-6 pb-32 pt-6">
-        <Text className="text-3xl font-black tracking-tight text-zinc-900 dark:text-zinc-100">Accounts</Text>
+        <Text className="text-3xl font-black tracking-tight text-zinc-900 dark:text-zinc-100" style={{ color: colors.primary }}>
+          Accounts
+        </Text>
         <EmailLinkGate
           title="Link email before adding accounts"
           description="Connect Gmail or iCloud first, then add and sync your financial accounts in one place."

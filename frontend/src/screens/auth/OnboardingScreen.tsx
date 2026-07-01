@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FiyLogo } from "@/components/fiy-logo";
+import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { getOrCreateDeviceUuid, saveAuthTokens, setStoredName } from "@/lib/auth-storage";
 import { setSession } from "@/redux/features/authSlice";
 import { useAppDispatch } from "@/redux/hooks";
@@ -9,6 +10,7 @@ import { useRegisterDeviceMutation } from "@/redux/api/authApi";
 
 export function OnboardingScreen() {
   const dispatch = useAppDispatch();
+  const { colors } = useColorTheme();
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [registerDevice, { isLoading }] = useRegisterDeviceMutation();
@@ -41,8 +43,10 @@ export function OnboardingScreen() {
   return (
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-white px-6 pb-10 pt-8 dark:bg-zinc-950">
       <View className="mb-10 flex-row items-center gap-2">
-        <FiyLogo size={32} />
-        <Text className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">FIY</Text>
+        <FiyLogo size={32} color={colors.primary} />
+        <Text className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100" style={{ color: colors.primary }}>
+          FIY
+        </Text>
       </View>
 
       <View className="flex-1 justify-center">
@@ -64,12 +68,15 @@ export function OnboardingScreen() {
         <Pressable
           onPress={handleContinue}
           disabled={isLoading}
-          className="mt-6 items-center justify-center rounded-xl bg-zinc-900 px-4 py-3 dark:bg-zinc-100"
+          className="mt-6 items-center justify-center rounded-xl px-4 py-3"
+          style={{ backgroundColor: colors.primary }}
         >
           {isLoading ? (
-            <ActivityIndicator color="#ffffff" />
+            <ActivityIndicator color={colors.onTopOfPrimary} />
           ) : (
-            <Text className="text-base font-semibold text-zinc-100 dark:text-zinc-900">Continue</Text>
+            <Text className="text-base font-semibold" style={{ color: colors.onTopOfPrimary }}>
+              Continue
+            </Text>
           )}
         </Pressable>
       </View>

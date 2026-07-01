@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { FiyLogo } from "@/components/fiy-logo";
 import { MarketingFooter } from "@/components/marketing-footer";
 import { ModeToggle } from "@/components/mode-toggle";
+import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
 import documentsLight from "@/assets/marketing/documents.png";
@@ -15,14 +16,17 @@ type Props = NativeStackScreenProps<RootStackParamList, "Landing">;
 
 export function LandingScreen({ navigation }: Props) {
   const { isDark } = useTheme();
+  const { colors } = useColorTheme();
 
   return (
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-white dark:bg-zinc-950">
       <View className="flex-1">
         <View className="w-full flex-row items-center justify-between px-6 pt-3">
           <View className="flex-row items-center gap-2">
-            <FiyLogo size={30} color={isDark ? "#fafafa" : "#0a0a0a"} />
-            <Text className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">FIY</Text>
+            <FiyLogo size={30} color={colors.primary} />
+            <Text className="text-xl font-semibold text-zinc-900 dark:text-zinc-100" style={{ color: colors.primary }}>
+              FIY
+            </Text>
           </View>
           <ModeToggle />
         </View>
@@ -37,9 +41,12 @@ export function LandingScreen({ navigation }: Props) {
 
           <Pressable
             onPress={() => navigation.navigate("Onboarding")}
-            className="mt-8 items-center justify-center rounded-xl bg-zinc-900 px-6 py-3 dark:bg-zinc-100"
+            className="mt-8 items-center justify-center rounded-xl px-6 py-3"
+            style={{ backgroundColor: colors.primary }}
           >
-            <Text className="text-base font-semibold text-zinc-100 dark:text-zinc-900">Get Started</Text>
+            <Text className="text-base font-semibold" style={{ color: colors.onTopOfPrimary }}>
+              Get Started
+            </Text>
           </Pressable>
 
           <View className="mt-10 w-full flex-row items-center justify-between px-5">
