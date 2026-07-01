@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +9,7 @@ const OPTIONS = ["light", "dark", "system"] as const;
 
 export function ModeToggle() {
   const { theme, setTheme, isDark } = useTheme();
+  const { colors } = useColorTheme();
   const [open, setOpen] = useState(false);
 
   return (
@@ -17,7 +19,7 @@ export function ModeToggle() {
         className="h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900"
         hitSlop={8}
       >
-        <Feather name={isDark ? "moon" : "sun"} size={18} color={isDark ? "#f4f4f5" : "#18181b"} />
+        <Feather name={isDark ? "moon" : "sun"} size={18} color={colors.primary} />
       </Pressable>
 
       {open ? (
