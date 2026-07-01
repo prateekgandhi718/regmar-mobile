@@ -316,7 +316,12 @@ export function EmailLinkGate({ title, description, children, showLinkedStateWhe
         }}
       >
         <DrawerContent>
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            automaticallyAdjustKeyboardInsets
+          >
             <DrawerHeader>
               <DrawerTitle>{drawerMode === "edit" ? "Edit Email Credentials" : "Link Email Account"}</DrawerTitle>
               <DrawerDescription>
