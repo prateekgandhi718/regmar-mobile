@@ -24,10 +24,9 @@ type TabMeta = {
 
 const TAB_META: Record<string, TabMeta> = {
   Home: { label: "Home", icon: "home" },
-  Txns: { label: "Txns", icon: "repeat" },
+  Txns: { label: "Transactions", icon: "repeat" },
   Investments: { label: "Investments", icon: "trending-up" },
   Accounts: { label: "Accounts", icon: "credit-card" },
-  Settings: { label: "Settings", icon: "settings" },
 };
 
 export function LiquidGlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {

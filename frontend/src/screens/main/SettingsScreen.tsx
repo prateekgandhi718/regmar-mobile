@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Feather } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import { EmailLinkGate } from "@/components/email/EmailLinkGate";
-import { FiyLogo } from "@/components/fiy-logo";
+import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { ModeToggle } from "@/components/mode-toggle";
 import { isValidHexColor, normalizeHexColor, ThemePalette, withOpacity } from "@/theme/color-theme";
 
@@ -48,6 +50,7 @@ const parsePaletteInput = (value: string): ThemePalette | null => {
 };
 
 export function SettingsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { isDark } = useTheme();
   const { palette, colors, setPalette, resetPalette, isPaletteReady } = useColorTheme();
   const [paletteInput, setPaletteInput] = useState(`${palette.primary},${palette.secondary},${palette.tertiary}`);
@@ -120,16 +123,8 @@ export function SettingsScreen() {
       setIsSavingPalette(true);
       setPaletteInput(nextInput);
       await setPalette(randomPalette);
-      Toast.show({
-        type: "success",
-        text1: "Theme randomized",
-      });
     } catch (error) {
       console.error("Failed to randomize palette", error);
-      Toast.show({
-        type: "error",
-        text1: "Could not randomize colors",
-      });
     } finally {
       setIsSavingPalette(false);
     }
@@ -139,7 +134,13 @@ export function SettingsScreen() {
     <SafeAreaView edges={["top"]} className="flex-1 bg-zinc-50 dark:bg-zinc-950">
       <View className="w-full flex-row items-center justify-between px-6 pt-3">
         <View className="flex-row items-center gap-2">
-          <FiyLogo size={30} color={colors.primary} />
+          <Pressable
+            onPress={() => navigation.goBack()}
+            className="h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900"
+            hitSlop={8}
+          >
+            <Feather name="chevron-left" size={20} color={colors.primary} />
+          </Pressable>
           <Text className="text-xl font-semibold text-zinc-900 dark:text-zinc-100" style={{ color: colors.primary }}>
             SETTINGS
           </Text>
