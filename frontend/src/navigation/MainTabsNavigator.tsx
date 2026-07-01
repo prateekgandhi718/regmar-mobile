@@ -3,7 +3,6 @@ import { LiquidGlassTabBar } from "@/components/navigation/LiquidGlassTabBar";
 import { AccountsScreen } from "@/screens/main/AccountsScreen";
 import { HomeScreen } from "@/screens/main/HomeScreen";
 import { InvestmentsScreen } from "@/screens/main/InvestmentsScreen";
-import { SettingsScreen } from "@/screens/main/SettingsScreen";
 import { TransactionsScreen } from "@/screens/main/TransactionsScreen";
 
 export type MainTabParamList = {
@@ -11,7 +10,6 @@ export type MainTabParamList = {
   Txns: undefined;
   Investments: undefined;
   Accounts: undefined;
-  Settings: undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -34,7 +32,6 @@ export function MainTabsNavigator() {
       <Tab.Screen name="Txns" component={TransactionsScreen} />
       <Tab.Screen name="Investments" component={InvestmentsScreen} />
       <Tab.Screen name="Accounts" component={AccountsScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
 }

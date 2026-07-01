@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { EmailLinkGate } from "@/components/email/EmailLinkGate";
 import { FiyLogo } from "@/components/fiy-logo";
+import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { getStoredName } from "@/lib/auth-storage";
 
 export function HomeScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useColorTheme();
   const [name, setName] = useState("User");
 
@@ -36,6 +41,13 @@ export function HomeScreen() {
               FIY
             </Text>
           </View>
+          <Pressable
+            onPress={() => navigation.navigate("Settings")}
+            className="h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900"
+            hitSlop={8}
+          >
+            <Feather name="settings" size={18} color={colors.primary} />
+          </Pressable>
         </View>
 
         <View className="flex-1 px-6 pb-32 pt-8">
