@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const TxnClassificationTrainingSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    transactionId: { type: mongoose.Schema.Types.ObjectId, ref: "Transaction" },
+    clientTxnId: { type: String, index: true },
     emailText: { type: String, required: true },
     sourceDomain: { type: String },
     isTransactionLabel: { type: Number, required: true }, // 0 or 1

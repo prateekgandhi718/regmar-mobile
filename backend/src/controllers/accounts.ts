@@ -1,6 +1,4 @@
 import express from "express";
-import fs from "fs";
-import path from "path";
 import {
   getAccountsByUserId,
   createAccount,
@@ -14,7 +12,6 @@ import {
   deleteDomainById,
   deleteDomainsByAccountId,
 } from "../db/domainModel";
-import { deleteTransactionsByAccountId } from "../db/transactionModel";
 import { getActiveLinkedAccountByUserId } from "../db/linkedAccountModel";
 import { deleteSyncStatesByDomainId } from "../db/syncStateModel";
 import { AuthRequest } from "../middlewares/auth";
@@ -41,7 +38,6 @@ const cleanupDomain = async (userId: string, domainId: string) => {
 const processAccountDomains = async (
   userId: string,
   accountId: string,
-  linkedAccount: any,
   domainNames: string[]
 ): Promise<string[]> => {
   const domainIds: string[] = [];
@@ -93,7 +89,7 @@ export const addUserAccount = async (
       });
     }
 
-    const { title, icon, currency, accountNumber, domainNames } = req.body;
+    const { title, icon, currency, domainNames } = req.body;
     if (!title) return res.status(400).json({ message: "Title is required" });
 
     const account = await createAccount({
@@ -101,7 +97,6 @@ export const addUserAccount = async (
       title,
       icon,
       currency: currency || "INR",
-      accountNumber,
     });
 
     try {
@@ -110,7 +105,6 @@ export const addUserAccount = async (
         domainIds = await processAccountDomains(
           userId,
           account._id.toString(),
-          linkedAccount,
           domainNames
         );
       }
@@ -153,8 +147,8 @@ export const updateAccount = async (
     const existingAccount = await getAccountById(id);
     if (!existingAccount) return res.sendStatus(404);
 
-    const { title, icon, currency, accountNumber, domainNames } = req.body;
-    const values: any = { title, icon, currency, accountNumber };
+    const { title, icon, currency, domainNames } = req.body;
+    const values: any = { title, icon, currency };
 
     if (domainNames && Array.isArray(domainNames)) {
       // For updates, we replace existing domains
@@ -167,7 +161,6 @@ export const updateAccount = async (
       values.domainIds = await processAccountDomains(
         userId,
         id,
-        linkedAccount,
         domainNames
       );
     }
@@ -197,10 +190,7 @@ export const deleteAccount = async (
       await cleanupDomain(userId, domain._id.toString());
     }
 
-    // 3. Delete all transactions for this account
-    await deleteTransactionsByAccountId(id);
-
-    // 4. Delete the account itself
+    // 3. Delete the account itself
     await deleteAccountById(id);
 
     return res.status(200).json({

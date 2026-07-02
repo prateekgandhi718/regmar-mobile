@@ -10,7 +10,7 @@ const NerEntitySchema = new mongoose.Schema({
 const NerTrainingSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 
-  transactionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Transaction', required: true, unique: true},
+  clientTxnId: { type: String, required: true, unique: true},
 
   emailText: { type: String, required: true },
 

@@ -14,22 +14,22 @@ export const saveNerFeedback = async (
     if (!userId) return res.sendStatus(401);
 
     const {
-      transactionId,
+      clientTxnId,
       emailText,
       modelEntities,
       correctedEntities,
       nerModelVersion,
     } = req.body;
 
-    if (!transactionId || !emailText || !correctedEntities) {
+    if (!clientTxnId || !emailText || !correctedEntities) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
     const trainingSample = await NerTrainingModel.findOneAndUpdate(
-      { transactionId }, // unique key
+      { clientTxnId }, // unique key
       {
         userId,
-        transactionId,
+        clientTxnId,
         emailText,
         modelEntities,
         correctedEntities,

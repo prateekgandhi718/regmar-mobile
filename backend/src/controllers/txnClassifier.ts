@@ -5,7 +5,6 @@ import {
   TxnClassificationTrainingModel,
   createTxnClassificationTraining,
 } from "../db/txnClassificationTrainingModel";
-import { deleteTransactionById, updateTransactionById } from "../db/transactionModel";
 
 const pythonApiUrl = process.env.PYTHON_API_URL || "http://localhost:8000";
 
@@ -18,7 +17,7 @@ export const saveTxnClassifierFeedback = async (
     if (!userId) return res.sendStatus(401);
 
     const {
-      transactionId,
+      clientTxnId,
       emailText,
       sourceDomain,
       isTransaction,
@@ -43,7 +42,7 @@ export const saveTxnClassifierFeedback = async (
 
     const payload = {
       userId,
-      transactionId,
+      clientTxnId,
       emailText,
       sourceDomain,
       isTransactionLabel,
@@ -55,22 +54,14 @@ export const saveTxnClassifierFeedback = async (
     };
 
     let trainingSample;
-    if (transactionId) {
+    if (clientTxnId) {
       trainingSample = await TxnClassificationTrainingModel.findOneAndUpdate(
-        { userId, transactionId },
+        { userId, clientTxnId },
         payload,
         { new: true, upsert: true, setDefaultsOnInsert: true },
       );
     } else {
       trainingSample = await createTxnClassificationTraining(payload);
-    }
-
-    if (isTransaction && transactionId && txnType) {
-      await updateTransactionById(transactionId, { userType: txnType });
-    }
-
-    if (!isTransaction && transactionId) {
-      await deleteTransactionById(transactionId);
     }
 
     return res.status(200).json(trainingSample);
