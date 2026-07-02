@@ -1,14 +1,9 @@
 import express from "express";
+import { createHash } from "crypto";
 import { AuthRequest } from "../middlewares/auth";
 import { getActiveLinkedAccountByUserId } from "../db/linkedAccountModel";
 import { getAccountsByUserId } from "../db/accountModel";
 import { getSyncState, updateSyncState } from "../db/syncStateModel";
-import {
-  createTransaction,
-  deleteTransactionById,
-  getUnprocessedTransactionsByUserAndDomain,
-  updateTransactionById,
-} from "../db/transactionModel";
 import { decrypt } from "../helpers/encryption";
 import {
   fetchEmailsIncrementally,
@@ -24,6 +19,58 @@ import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.js";
 import { parseCASText } from "../helpers/casParser";
 import { ClassifyEmailResponse, ClassifyTransactionTypeResponse, EntityData, ExtractEntitiesResponse, TestResultEntry } from "../helpers/syncTransactions";
 import { processEmailWithPython } from "../helpers/txnProcessing";
+
+type SyncedTransaction = {
+  clientTxnId: string;
+  accountId: {
+    _id: string;
+    userId: string;
+    title: string;
+    currency: string;
+    accountNumber?: string;
+  };
+  domainId: {
+    _id: string;
+    userId: string;
+    accountId: string;
+    fromEmail: string;
+  };
+  userId: string;
+  originalDate: string;
+  originalDescription: string;
+  originalAmount: number;
+  type: "credit" | "debit";
+  typeConfidence?: number;
+  isTransactionConfidence?: number;
+  userType?: "credit" | "debit";
+  nerModel?: string;
+  entities: EntityData[];
+  correctedEntities: null;
+  refunded: boolean;
+  emailBody: string;
+  createdAt: string;
+  updatedAt: string;
+  categoryId?: {
+    _id: string;
+    name: string;
+  };
+  newDate?: string;
+  newDescription?: string;
+  newAmount?: number;
+};
+
+class MlUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MlUnavailableError";
+  }
+}
+
+const createClientTxnId = (userId: string, accountId: string, domainId: string, uid: number) =>
+  createHash("sha256")
+    .update(`${userId}:${accountId}:${domainId}:${uid}`)
+    .digest("hex")
+    .slice(0, 40);
 
 export const syncInvestments = async (
   req: AuthRequest,
@@ -205,6 +252,7 @@ export const syncAccountTransactions = async (
     }
 
     let totalSynced = 0;
+    const syncedTransactions: SyncedTransaction[] = [];
 
     for (const account of accountsWithDomains) {
       for (const domain of account.domainIds as any) {
@@ -244,7 +292,7 @@ export const syncAccountTransactions = async (
             `Processing ${emails.length} emails for ${domain.fromEmail}`,
           );
 
-          for (const { content, date } of emails) {
+          for (const { content, date, uid } of emails) {
             console.log(`\n--- Processing Email (${date}) ---`);
             console.log(
               `RAW TEXT:\n${content.substring(0, 200)}...\n------------------`,
@@ -253,24 +301,9 @@ export const syncAccountTransactions = async (
             const result = await processEmailWithPython(content);
 
             if (result.status === "unavailable") {
-              // Store raw email for later processing when Python is available
-              try {
-                await createTransaction({
-                  accountId: account._id,
-                  domainId: domain._id,
-                  userId,
-                  emailBody: content,
-                  originalDate: date,
-                  originalDescription: content.substring(0, 10),
-                  originalAmount: 0,
-                  type: "debit",
-                  isProcessed: false,
-                });
-                console.log("Stored unprocessed transaction (Python unavailable)");
-              } catch (err: any) {
-                console.error(`Error saving unprocessed transaction: ${err.message}`);
-              }
-              continue;
+              throw new MlUnavailableError(
+                "Transaction sync is temporarily unavailable. Please try again in a few minutes.",
+              );
             }
 
             if (result.status === "non_transaction") {
@@ -290,93 +323,48 @@ export const syncAccountTransactions = async (
               originalDescription,
             } = result.data;
 
-            // 5. Persist transaction with model outputs
-            try {
-              await createTransaction({
-                accountId: account._id,
-                domainId: domain._id,
+            const now = new Date().toISOString();
+            syncedTransactions.push({
+              clientTxnId: createClientTxnId(
                 userId,
-                emailBody: content,
-                originalDate: date,
-                originalDescription,
-                originalAmount,
-                type: txnType,
-                typeConfidence,
-                isTransactionConfidence,
-                entities: processedEntities,
-                nerModel: nerModelName,
-                isProcessed: true,
-              });
-              totalSynced++;
-              console.log("Stored transaction with ML analysis");
-            } catch (err: any) {
-              console.error(`Error saving transaction: ${err.message}`);
-            }
-          }
-
-          // 6. Update sync state
-          await updateSyncState(userId, domain._id.toString(), newLastUid);
-        }
-
-        // 7. Process unprocessed transactions already stored for this domain
-        const pendingTransactions =
-          await getUnprocessedTransactionsByUserAndDomain(
-            userId,
-            domain._id.toString(),
-          );
-
-        if (pendingTransactions.length > 0) {
-          console.log(
-            `Reprocessing ${pendingTransactions.length} pending transactions for ${domain.fromEmail}`,
-          );
-        }
-
-        for (const pending of pendingTransactions) {
-          if (!pending.emailBody) {
-            console.warn(
-              `Pending transaction ${pending._id} has no email body; skipping`,
-            );
-            continue;
-          }
-
-          const result = await processEmailWithPython(pending.emailBody);
-
-          if (result.status === "unavailable") {
-            continue;
-          }
-
-          if (result.status === "non_transaction") {
-            await deleteTransactionById(pending._id.toString());
-            continue;
-          }
-
-          const {
-            txnType,
-            typeConfidence,
-            isTransactionConfidence,
-            processedEntities,
-            nerModelName,
-            originalAmount,
-            originalDescription,
-          } = result.data;
-
-          try {
-            await updateTransactionById(pending._id.toString(), {
+                account._id.toString(),
+                domain._id.toString(),
+                uid,
+              ),
+              accountId: {
+                _id: account._id.toString(),
+                userId: account.userId.toString(),
+                title: account.title,
+                currency: account.currency,
+                accountNumber: account.accountNumber || undefined,
+              },
+              domainId: {
+                _id: domain._id.toString(),
+                userId: domain.userId.toString(),
+                accountId: domain.accountId.toString(),
+                fromEmail: domain.fromEmail,
+              },
+              userId,
+              originalDate: new Date(date).toISOString(),
               originalDescription,
               originalAmount,
               type: txnType,
               typeConfidence,
               isTransactionConfidence,
+              nerModel: nerModelName || undefined,
               entities: processedEntities,
-              nerModel: nerModelName,
-              isProcessed: true,
+              correctedEntities: null,
+              refunded: false,
+              emailBody: content,
+              createdAt: now,
+              updatedAt: now,
             });
             totalSynced++;
-          } catch (err: any) {
-            console.error(
-              `Error updating pending transaction ${pending._id}: ${err.message}`,
-            );
+            console.log("Processed transaction in memory");
           }
+
+          // 6. Update sync state
+          await updateSyncState(userId, domain._id.toString(), newLastUid);
         }
       }
     }
@@ -384,8 +372,14 @@ export const syncAccountTransactions = async (
     return res.status(200).json({
       message: "Sync completed successfully",
       transactionsSynced: totalSynced,
+      transactions: syncedTransactions,
     });
   } catch (error) {
+    if (error instanceof MlUnavailableError) {
+      return res.status(503).json({
+        message: error.message,
+      });
+    }
     console.error("Sync error:", error);
     if (isImapAuthError(error)) {
       return res.status(400).json({

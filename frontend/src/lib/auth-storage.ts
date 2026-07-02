@@ -5,6 +5,7 @@ const DEVICE_UUID_KEY = "auth.deviceUuid";
 const USER_NAME_KEY = "auth.userName";
 const ACCESS_TOKEN_KEY = "auth.accessToken";
 const REFRESH_TOKEN_KEY = "auth.refreshToken";
+const TXN_CRYPTO_KEY = "txn.cryptoKey";
 
 export const getOrCreateDeviceUuid = async () => {
   const existing = await SecureStore.getItemAsync(DEVICE_UUID_KEY);
@@ -37,4 +38,13 @@ export const clearAuthTokens = async () => {
     SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
     SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
   ]);
+};
+
+export const getOrCreateTxnCryptoKey = async () => {
+  const existing = await SecureStore.getItemAsync(TXN_CRYPTO_KEY);
+  if (existing) return existing;
+
+  const next = `${Crypto.randomUUID()}-${Crypto.randomUUID()}`;
+  await SecureStore.setItemAsync(TXN_CRYPTO_KEY, next);
+  return next;
 };

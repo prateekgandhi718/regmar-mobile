@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
@@ -132,94 +132,100 @@ export function SettingsScreen() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-zinc-50 dark:bg-zinc-950">
-      <View className="w-full flex-row items-center justify-between px-6 pt-3">
-        <View className="flex-row items-center gap-2">
-          <Pressable
-            onPress={() => navigation.goBack()}
-            className="h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900"
-            hitSlop={8}
-          >
-            <Feather name="chevron-left" size={20} color={colors.primary} />
-          </Pressable>
-          <Text className="text-xl font-semibold text-zinc-900 dark:text-zinc-100" style={{ color: colors.primary }}>
-            SETTINGS
-          </Text>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+        <View className="w-full flex-row items-center justify-between px-6 pt-3">
+          <View className="flex-row items-center gap-2">
+            <Pressable
+              onPress={() => navigation.goBack()}
+              className="h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900"
+              hitSlop={8}
+            >
+              <Feather name="chevron-left" size={20} color={colors.primary} />
+            </Pressable>
+            <Text className="text-xl font-semibold text-zinc-900 dark:text-zinc-100" style={{ color: colors.primary }}>
+              SETTINGS
+            </Text>
+          </View>
+          <ModeToggle />
         </View>
-        <ModeToggle />
-      </View>
 
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 180 }}>
-        <EmailLinkGate
-          title="Link the email"
-          description="Connect your inbox here to enable transaction, accounts, and investment sync across the app."
-          showLinkedStateWhenLinked
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 180 }}
+          keyboardShouldPersistTaps="handled"
         >
-          <></>
-        </EmailLinkGate>
+          <EmailLinkGate
+            title="Link the email"
+            description="Connect your inbox here to enable transaction, accounts, and investment sync across the app."
+            showLinkedStateWhenLinked
+          >
+            <></>
+          </EmailLinkGate>
 
-        <View className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <View className="mb-3 flex-row items-start justify-between">
-            <View className="flex-1 pr-3">
-              <View className="flex-row items-center gap-2">
-                <Feather name="droplet" size={16} color={colors.primary} />
-                <Text className="text-base font-bold text-zinc-900 dark:text-zinc-100">Accent Colors</Text>
+          <View className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+            <View className="mb-3 flex-row items-start justify-between">
+              <View className="flex-1 pr-3">
+                <View className="flex-row items-center gap-2">
+                  <Feather name="droplet" size={16} color={colors.primary} />
+                  <Text className="text-base font-bold text-zinc-900 dark:text-zinc-100">Accent Colors</Text>
+                </View>
+                <Text className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Enter 3 colors for your theme.</Text>
               </View>
-              <Text className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Enter 3 colors for your theme.</Text>
+              <View className="flex-row gap-1">
+                <View className="h-4 w-4 rounded-full border border-white" style={{ backgroundColor: colors.primary }} />
+                <View className="h-4 w-4 rounded-full border border-white" style={{ backgroundColor: colors.secondary }} />
+                <View className="h-4 w-4 rounded-full border border-white" style={{ backgroundColor: colors.tertiary }} />
+              </View>
             </View>
-            <View className="flex-row gap-1">
-              <View className="h-4 w-4 rounded-full border border-white" style={{ backgroundColor: colors.primary }} />
-              <View className="h-4 w-4 rounded-full border border-white" style={{ backgroundColor: colors.secondary }} />
-              <View className="h-4 w-4 rounded-full border border-white" style={{ backgroundColor: colors.tertiary }} />
+
+            <TextInput
+              value={paletteInput}
+              onChangeText={setPaletteInput}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              placeholder="#2563EB,#F97316,#22C55E"
+              placeholderTextColor="#71717A"
+              className="rounded-xl border border-zinc-300 bg-white px-3 py-3 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            />
+
+            {!isValid ? (
+              <Text className="mt-2 text-xs text-red-500">Enter 3 comma-separated hex values.</Text>
+            ) : null}
+
+            <View className="mt-4 flex-row gap-3">
+              <Pressable
+                onPress={handleRandomizePalette}
+                disabled={isSavingPalette}
+                className="items-center justify-center rounded-xl border px-3 py-3"
+                style={{ borderColor: withOpacity(colors.primary, 0.45), backgroundColor: withOpacity(colors.primary, 0.1) }}
+              >
+                <Feather name="shuffle" size={14} color={colors.primary} />
+              </Pressable>
+              <Pressable
+                onPress={handleApplyPalette}
+                disabled={applyDisabled}
+                className="flex-1 items-center justify-center rounded-xl px-4 py-3"
+                style={{ backgroundColor: applyDisabled ? "rgba(113,113,122,0.35)" : colors.primary }}
+              >
+                <Text className="text-sm font-semibold" style={{ color: applyDisabled ? "#E4E4E7" : colors.onTopOfPrimary }}>
+                  {isSavingPalette ? "Applying..." : "Apply"}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={handleResetPalette}
+                disabled={isSavingPalette || !isPaletteReady}
+                className="items-center justify-center rounded-xl border px-4 py-3"
+                style={{ borderColor: withOpacity(colors.secondary, 0.45), backgroundColor: withOpacity(colors.secondary, 0.12) }}
+              >
+                <Text className="text-sm font-semibold" style={{ color: colors.secondary }}>
+                  Reset
+                </Text>
+              </Pressable>
             </View>
           </View>
-
-          <TextInput
-            value={paletteInput}
-            onChangeText={setPaletteInput}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            placeholder="#2563EB,#F97316,#22C55E"
-            placeholderTextColor="#71717A"
-            className="rounded-xl border border-zinc-300 bg-white px-3 py-3 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-          />
-
-          {!isValid ? (
-            <Text className="mt-2 text-xs text-red-500">Enter 3 comma-separated hex values.</Text>
-          ) : null}
-
-          <View className="mt-4 flex-row gap-3">
-            <Pressable
-              onPress={handleRandomizePalette}
-              disabled={isSavingPalette}
-              className="items-center justify-center rounded-xl border px-3 py-3"
-              style={{ borderColor: withOpacity(colors.primary, 0.45), backgroundColor: withOpacity(colors.primary, 0.1) }}
-            >
-              <Feather name="shuffle" size={14} color={colors.primary} />
-            </Pressable>
-            <Pressable
-              onPress={handleApplyPalette}
-              disabled={applyDisabled}
-              className="flex-1 items-center justify-center rounded-xl px-4 py-3"
-              style={{ backgroundColor: applyDisabled ? "rgba(113,113,122,0.35)" : colors.primary }}
-            >
-              <Text className="text-sm font-semibold" style={{ color: applyDisabled ? "#E4E4E7" : colors.onTopOfPrimary }}>
-                {isSavingPalette ? "Applying..." : "Apply"}
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={handleResetPalette}
-              disabled={isSavingPalette || !isPaletteReady}
-              className="items-center justify-center rounded-xl border px-4 py-3"
-              style={{ borderColor: withOpacity(colors.secondary, 0.45), backgroundColor: withOpacity(colors.secondary, 0.12) }}
-            >
-              <Text className="text-sm font-semibold" style={{ color: colors.secondary }}>
-                Reset
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
