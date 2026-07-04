@@ -2,8 +2,6 @@ import express from "express";
 import { createHash } from "crypto";
 import { AuthRequest } from "../middlewares/auth";
 import { getActiveLinkedAccountByUserId } from "../db/linkedAccountModel";
-import { getAccountsByUserId } from "../db/accountModel";
-import { getSyncState, updateSyncState } from "../db/syncStateModel";
 import { decrypt } from "../helpers/encryption";
 import {
   fetchEmailsIncrementally,
@@ -53,6 +51,19 @@ type SyncedTransaction = {
   newDate?: string;
   newDescription?: string;
   newAmount?: number;
+};
+
+type SyncRequestDomain = {
+  clientDomainId: string;
+  fromEmail: string;
+};
+
+type SyncRequestAccount = {
+  clientAccountId: string;
+  title: string;
+  currency: string;
+  accountNumber?: string;
+  domains: SyncRequestDomain[];
 };
 
 class MlUnavailableError extends Error {
@@ -235,10 +246,13 @@ export const syncAccountTransactions = async (
     const email = linkedAccount.email;
     const provider = linkedAccount.provider === "icloud" ? "icloud" : "gmail";
 
-    // 2. Accounts with domains
-    const accounts = await getAccountsByUserId(userId);
+    const accounts = Array.isArray(req.body?.accounts)
+      ? (req.body.accounts as SyncRequestAccount[])
+      : [];
+    const incomingSyncState = req.body?.syncState as Record<string, number> | undefined;
+    const syncState = incomingSyncState && typeof incomingSyncState === "object" ? incomingSyncState : {};
     const accountsWithDomains = accounts.filter(
-      (acc) => acc.domainIds && acc.domainIds.length > 0,
+      (acc) => Array.isArray(acc.domains) && acc.domains.length > 0,
     );
 
     if (accountsWithDomains.length === 0) {
@@ -250,12 +264,12 @@ export const syncAccountTransactions = async (
 
     let totalSynced = 0;
     const syncedTransactions: SyncedTransaction[] = [];
+    const syncStateUpdates: Record<string, number> = {};
 
     for (const account of accountsWithDomains) {
-      for (const domain of account.domainIds as any) {
-        // 3. Sync state
-        const syncState = await getSyncState(userId, domain._id.toString());
-        const lastUid = syncState?.lastUid || 0;
+      for (const domain of account.domains) {
+        if (!domain?.clientDomainId || !domain?.fromEmail?.trim()) continue;
+        const lastUid = Number(syncState[domain.clientDomainId] || 0);
 
         let since: Date | undefined;
 
@@ -273,12 +287,12 @@ export const syncAccountTransactions = async (
           );
         }
 
-        // 4. Fetch emails
+          // 4. Fetch emails
         const { emails, lastUid: newLastUid } = await fetchEmailsIncrementally(
           provider,
           email,
           appPassword,
-          domain.fromEmail,
+          domain.fromEmail.trim(),
           lastUid,
           undefined,
           since,
@@ -324,22 +338,22 @@ export const syncAccountTransactions = async (
             syncedTransactions.push({
               clientTxnId: createClientTxnId(
                 userId,
-                account._id.toString(),
-                domain._id.toString(),
+                account.clientAccountId,
+                domain.clientDomainId,
                 uid,
               ),
               accountId: {
-                _id: account._id.toString(),
-                userId: account.userId.toString(),
+                _id: account.clientAccountId,
+                userId,
                 title: account.title,
                 currency: account.currency,
                 accountNumber: account.accountNumber || undefined,
               },
               domainId: {
-                _id: domain._id.toString(),
-                userId: domain.userId.toString(),
-                accountId: domain.accountId.toString(),
-                fromEmail: domain.fromEmail,
+                _id: domain.clientDomainId,
+                userId,
+                accountId: account.clientAccountId,
+                fromEmail: domain.fromEmail.trim(),
               },
               userId,
               originalDate: new Date(date).toISOString(),
@@ -359,10 +373,9 @@ export const syncAccountTransactions = async (
             totalSynced++;
             console.log("Processed transaction in memory");
           }
-
-          // 6. Update sync state
-          await updateSyncState(userId, domain._id.toString(), newLastUid);
         }
+
+        syncStateUpdates[domain.clientDomainId] = newLastUid;
       }
     }
 
@@ -370,6 +383,7 @@ export const syncAccountTransactions = async (
       message: "Sync completed successfully",
       transactionsSynced: totalSynced,
       transactions: syncedTransactions,
+      syncStateUpdates,
     });
   } catch (error) {
     if (error instanceof MlUnavailableError) {

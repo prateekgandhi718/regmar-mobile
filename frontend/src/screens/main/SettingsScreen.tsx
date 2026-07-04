@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import { EmailLinkGate } from "@/components/email/EmailLinkGate";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
+import { useClearTransactionsMutation } from "@/redux/api/transactionsApi";
 import { ModeToggle } from "@/components/mode-toggle";
 import { isValidHexColor, normalizeHexColor, ThemePalette, withOpacity } from "@/theme/color-theme";
 
@@ -55,6 +56,7 @@ export function SettingsScreen() {
   const { palette, colors, setPalette, resetPalette, isPaletteReady } = useColorTheme();
   const [paletteInput, setPaletteInput] = useState(`${palette.primary},${palette.secondary},${palette.tertiary}`);
   const [isSavingPalette, setIsSavingPalette] = useState(false);
+  const [clearTransactions, { isLoading: isClearingTransactions }] = useClearTransactionsMutation();
 
   useEffect(() => {
     setPaletteInput(`${palette.primary},${palette.secondary},${palette.tertiary}`);
@@ -128,6 +130,26 @@ export function SettingsScreen() {
     } finally {
       setIsSavingPalette(false);
     }
+  };
+
+  const handleClearTransactions = () => {
+    if (isClearingTransactions) return;
+    Alert.alert("Clear local transactions?", "This removes all synced transactions from local storage.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Clear",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await clearTransactions().unwrap();
+            Toast.show({ type: "success", text1: "Transactions cleared" });
+          } catch (error) {
+            console.error("Failed to clear transactions", error);
+            Toast.show({ type: "error", text1: "Could not clear transactions" });
+          }
+        },
+      },
+    ]);
   };
 
   return (
@@ -223,6 +245,26 @@ export function SettingsScreen() {
                 </Text>
               </Pressable>
             </View>
+          </View>
+
+          <View className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+            <View className="flex-row items-center gap-2">
+              <Feather name="trash-2" size={16} color={colors.secondary} />
+              <Text className="text-base font-bold text-zinc-900 dark:text-zinc-100">Local Transaction Data</Text>
+            </View>
+            <Text className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              Clear local transactions to test sync flow from a clean state.
+            </Text>
+            <Pressable
+              onPress={handleClearTransactions}
+              disabled={isClearingTransactions}
+              className="mt-4 items-center justify-center rounded-xl border px-4 py-3"
+              style={{ borderColor: withOpacity(colors.secondary, 0.45), backgroundColor: withOpacity(colors.secondary, 0.12) }}
+            >
+              <Text className="text-sm font-semibold" style={{ color: colors.secondary }}>
+                {isClearingTransactions ? "Clearing..." : "Clear transactions"}
+              </Text>
+            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

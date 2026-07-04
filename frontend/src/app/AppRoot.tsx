@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { AppProviders } from "@/components/providers/AppProviders";
 import { useTheme } from "@/components/providers/theme-provider";
+import { initAccountsDb } from "@/lib/accounts-db";
 import { API_BASE_URL } from "@/lib/api";
 import { getAccessToken, getOrCreateDeviceUuid, getRefreshToken, getStoredName, saveAuthTokens } from "@/lib/auth-storage";
 import { initTransactionsDb } from "@/lib/transactions-db";
@@ -24,7 +25,7 @@ function AuthBootstrap() {
 
     const bootstrap = async () => {
       try {
-        await initTransactionsDb();
+        await Promise.all([initTransactionsDb(), initAccountsDb()]);
         const deviceUuid = await getOrCreateDeviceUuid();
         const [accessToken, refreshToken, name] = await Promise.all([getAccessToken(), getRefreshToken(), getStoredName()]);
 
