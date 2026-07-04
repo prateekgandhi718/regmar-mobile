@@ -6,6 +6,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDB } from './db/connection';
 import router from './router';
+import { seedCategories } from './helpers/seedCategories';
 import { seedNeeds } from './helpers/seedNeeds';
 import { loadStockMaster } from './helpers/stockMaster';
 
@@ -38,6 +39,7 @@ server.listen(PORT, () => {
 });
 
 connectDB().then(() => {
+  seedCategories();
   seedNeeds();
 });
 
