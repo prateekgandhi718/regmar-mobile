@@ -14,6 +14,9 @@ import { clearAllTransactionsLocal } from "@/lib/transactions-db";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { logout } from "@/redux/features/authSlice";
 import { useAppDispatch } from "@/redux/hooks";
+import { useDeleteMeMutation } from "@/redux/api/authApi";
+import { accountsApi } from "@/redux/api/accountsApi";
+import { linkedAccountsApi } from "@/redux/api/linkedAccountsApi";
 import { useClearTransactionsMutation } from "@/redux/api/transactionsApi";
 import { ModeToggle } from "@/components/mode-toggle";
 import { withOpacity } from "@/theme/color-theme";
@@ -23,6 +26,7 @@ export function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useColorTheme();
   const [clearTransactions, { isLoading: isClearingTransactions }] = useClearTransactionsMutation();
+  const [deleteMe] = useDeleteMeMutation();
   const [isResettingAppData, setIsResettingAppData] = useState(false);
 
   const handleClearTransactions = () => {
@@ -50,25 +54,40 @@ export function SettingsScreen() {
 
     Alert.alert(
       "Reset app data?",
-      "This clears all local auth, transactions, accounts, and investments and returns to onboarding.",
+      "This removes your cloud user/account data and clears all local app data, then returns to onboarding.",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Reset",
           style: "destructive",
           onPress: async () => {
+            let didDeleteCloudData = false;
             try {
               setIsResettingAppData(true);
+              try {
+                await deleteMe().unwrap();
+                didDeleteCloudData = true;
+              } catch {
+                // Cloud delete endpoint may be unavailable on older backend builds.
+              }
+
               await Promise.all([
                 clearAllAuthLocalStorage(),
                 clearInvestmentStorage(),
                 clearAllTransactionsLocal(),
                 clearAllAccountsLocal(),
               ]);
+              // Clear in-memory RTK query caches so linked-email and account data are removed immediately.
+              dispatch(linkedAccountsApi.util.resetApiState());
+              dispatch(accountsApi.util.resetApiState());
               dispatch(logout());
-              Toast.show({ type: "success", text1: "Local app data reset" });
+              Toast.show({
+                type: didDeleteCloudData ? "success" : "info",
+                text1: didDeleteCloudData ? "App data reset" : "Local data reset",
+                text2: didDeleteCloudData ? undefined : "Cloud account delete endpoint not available on current backend.",
+              });
             } catch (error) {
-              console.error("Failed to reset local app data", error);
+              console.error("Failed to reset app data", error);
               Toast.show({ type: "error", text1: "Could not reset app data" });
             } finally {
               setIsResettingAppData(false);
@@ -137,7 +156,7 @@ export function SettingsScreen() {
               style={{ borderColor: withOpacity(colors.primary, 0.45), backgroundColor: withOpacity(colors.primary, 0.12) }}
             >
               <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
-                {isResettingAppData ? "Resetting..." : "Reset local app data"}
+                {isResettingAppData ? "Resetting..." : "Reset app data"}
               </Text>
             </Pressable>
           </View>

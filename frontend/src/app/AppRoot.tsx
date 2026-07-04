@@ -5,7 +5,14 @@ import { AppProviders } from "@/components/providers/AppProviders";
 import { useTheme } from "@/components/providers/theme-provider";
 import { initAccountsDb } from "@/lib/accounts-db";
 import { API_BASE_URL } from "@/lib/api";
-import { getAccessToken, getOrCreateDeviceUuid, getRefreshToken, getStoredName, saveAuthTokens } from "@/lib/auth-storage";
+import {
+  getAccessToken,
+  getOnboardingCompleted,
+  getOrCreateDeviceUuid,
+  getRefreshToken,
+  getStoredName,
+  saveAuthTokens,
+} from "@/lib/auth-storage";
 import { initTransactionsDb } from "@/lib/transactions-db";
 import { AppNavigator } from "@/navigation/AppNavigator";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -30,11 +37,16 @@ function AuthBootstrap() {
       try {
         await Promise.all([initTransactionsDb(), initAccountsDb()]);
         const deviceUuid = await getOrCreateDeviceUuid();
-        const [accessToken, refreshToken, name] = await Promise.all([getAccessToken(), getRefreshToken(), getStoredName()]);
+        const [accessToken, refreshToken, name, onboardingCompleted] = await Promise.all([
+          getAccessToken(),
+          getRefreshToken(),
+          getStoredName(),
+          getOnboardingCompleted(),
+        ]);
 
         if (accessToken && refreshToken) {
           if (!active) return;
-          dispatch(setSession({ accessToken, refreshToken }));
+          dispatch(setSession({ accessToken, refreshToken, onboardingComplete: onboardingCompleted ?? true }));
           return;
         }
 
@@ -58,7 +70,13 @@ function AuthBootstrap() {
         }
 
         await saveAuthTokens(data.accessToken, data.refreshToken);
-        dispatch(setSession({ accessToken: data.accessToken, refreshToken: data.refreshToken }));
+        dispatch(
+          setSession({
+            accessToken: data.accessToken,
+            refreshToken: data.refreshToken,
+            onboardingComplete: onboardingCompleted ?? true,
+          }),
+        );
       } catch (error) {
         console.error("Failed to bootstrap auth:", error);
       } finally {

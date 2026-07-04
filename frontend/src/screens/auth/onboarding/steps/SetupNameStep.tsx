@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Animated, Easing, Keyboard, Platform, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Animated, Easing, Keyboard, Platform, Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
 import { SetupProgressHeader } from "../SetupProgressHeader";
@@ -10,11 +10,12 @@ type SetupNameStepProps = {
   name: string;
   error: string | null;
   onNameChange: (value: string) => void;
-  onBack: () => void;
+  onBack?: () => void;
   onContinue: () => void;
+  isLoading?: boolean;
 };
 
-export function SetupNameStep({ transition, name, error, onNameChange, onBack, onContinue }: SetupNameStepProps) {
+export function SetupNameStep({ transition, name, error, onNameChange, onBack, onContinue, isLoading = false }: SetupNameStepProps) {
   const keyboardOffset = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -77,10 +78,11 @@ export function SetupNameStep({ transition, name, error, onNameChange, onBack, o
         </View>
         <Pressable
           onPress={onContinue}
+          disabled={isLoading}
           className="items-center justify-center rounded-full px-6 py-4"
-          style={{ backgroundColor: "#F4F4F5" }}
+          style={{ backgroundColor: isLoading ? "#A1A1AA" : "#F4F4F5" }}
         >
-          <Text className="text-lg font-semibold text-zinc-900">Continue</Text>
+          {isLoading ? <ActivityIndicator color="#111827" /> : <Text className="text-lg font-semibold text-zinc-900">Continue</Text>}
         </Pressable>
       </Animated.View>
     </SafeAreaView>

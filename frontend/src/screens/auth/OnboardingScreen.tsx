@@ -1,18 +1,21 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing } from "react-native";
-import { useColorTheme } from "@/components/providers/color-theme-provider";
-import { getOrCreateDeviceUuid, saveAuthTokens, setStoredName } from "@/lib/auth-storage";
+import { ActivityIndicator, Animated, Easing, View } from "react-native";
+import { getOrCreateDeviceUuid, saveAuthTokens, setOnboardingCompleted, setStoredName } from "@/lib/auth-storage";
+import { useAddAccountMutation, useGetAccountsQuery } from "@/redux/api/accountsApi";
 import { useRegisterDeviceMutation } from "@/redux/api/authApi";
-import { setSession } from "@/redux/features/authSlice";
-import { useAppDispatch } from "@/redux/hooks";
+import { LinkedAccountProvider, useGetLinkedAccountsQuery, useLinkEmailAccountMutation } from "@/redux/api/linkedAccountsApi";
+import { setOnboardingComplete, setSession } from "@/redux/features/authSlice";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { InsightsStep } from "./onboarding/steps/InsightsStep";
 import { IntroStep } from "./onboarding/steps/IntroStep";
 import { LogoMorphStep } from "./onboarding/steps/LogoMorphStep";
 import { NeedsStep } from "./onboarding/steps/NeedsStep";
 import { PrivacyStep } from "./onboarding/steps/PrivacyStep";
+import { SetupAccountStep } from "./onboarding/steps/SetupAccountStep";
+import { SetupEmailCredentialsStep } from "./onboarding/steps/SetupEmailCredentialsStep";
+import { SetupEmailProviderStep } from "./onboarding/steps/SetupEmailProviderStep";
 import { SetupHiStep } from "./onboarding/steps/SetupHiStep";
 import { SetupNameStep } from "./onboarding/steps/SetupNameStep";
-import { SetupPlaceholderStep } from "./onboarding/steps/SetupPlaceholderStep";
 import type { BubbleNeed, NeedInsight, OnboardingStep } from "./onboarding/types";
 
 const NEED_BUBBLES: BubbleNeed[] = [
@@ -43,13 +46,40 @@ const NEED_INSIGHTS: NeedInsight[] = [
   { label: "Purpose", score: 4, color: "#6E97FF", width: 250, radii: [2, 10, 10, 2] },
 ];
 
+const parseDomainNames = (value: string) =>
+  value
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+
 export function OnboardingScreen() {
   const dispatch = useAppDispatch();
-  const { colors } = useColorTheme();
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+
   const [step, setStep] = useState<OnboardingStep>("intro");
   const [name, setName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [registerDevice, { isLoading }] = useRegisterDeviceMutation();
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  const [emailProvider, setEmailProvider] = useState<LinkedAccountProvider>("gmail");
+  const [email, setEmail] = useState("");
+  const [appPassword, setAppPassword] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  const [bankName, setBankName] = useState("");
+  const [bankDomains, setBankDomains] = useState("");
+  const [bankLast4, setBankLast4] = useState("");
+  const [bankError, setBankError] = useState<string | null>(null);
+
+  const [registerDevice, { isLoading: isRegisteringDevice }] = useRegisterDeviceMutation();
+  const [linkEmailAccount, { isLoading: isLinkingEmail }] = useLinkEmailAccountMutation();
+  const [addAccount, { isLoading: isSavingAccount }] = useAddAccountMutation();
+
+  const { data: linkedAccounts = [], isLoading: isLoadingLinkedAccounts } = useGetLinkedAccountsQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const { data: accounts = [], isLoading: isLoadingAccounts } = useGetAccountsQuery(undefined, {
+    skip: !isAuthenticated,
+  });
 
   const transitionX = useRef(new Animated.Value(0)).current;
   const transitionOpacity = useRef(new Animated.Value(1)).current;
@@ -182,31 +212,143 @@ export function OnboardingScreen() {
     });
   }, [morphCircleOpacity, morphCircleScale, morphLogoOpacity, morphLogoScale, step]);
 
-  const handleFinishOnboarding = async () => {
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      setError("Please enter your name.");
-      transitionToStep("setupName");
+  const completeOnboarding = async () => {
+    await setOnboardingCompleted(true);
+    dispatch(setOnboardingComplete(true));
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated || isLoadingLinkedAccounts || isLoadingAccounts) return;
+
+    const hasLinkedEmail = linkedAccounts.some((account) => account.isActive);
+    const hasAccount = accounts.length > 0;
+
+    // If user already completed setup in a previous session, skip onboarding.
+    if (hasLinkedEmail && hasAccount && step !== "setupAccount") {
+      void completeOnboarding();
       return;
     }
-    setError(null);
+
+    if (hasLinkedEmail && !hasAccount && step !== "setupAccount") {
+      animateIntoStep("setupAccount");
+      return;
+    }
+
+    if (!hasLinkedEmail && step !== "setupEmailProvider" && step !== "setupEmailCredentials") {
+      animateIntoStep("setupEmailProvider");
+    }
+  }, [accounts.length, isAuthenticated, isLoadingAccounts, isLoadingLinkedAccounts, linkedAccounts, step]);
+
+  const handleRegisterAndContinue = async () => {
+    const trimmedName = name.trim();
+
+    if (!trimmedName) {
+      setNameError("Please enter your name.");
+      return;
+    }
+
+    setNameError(null);
 
     try {
       const deviceUuid = await getOrCreateDeviceUuid();
       const response = await registerDevice({ deviceUuid, name: trimmedName }).unwrap();
+
       await Promise.all([
         setStoredName(trimmedName),
         saveAuthTokens(response.accessToken, response.refreshToken),
+        setOnboardingCompleted(false),
       ]);
-      dispatch(setSession({ accessToken: response.accessToken, refreshToken: response.refreshToken }));
+
+      dispatch(
+        setSession({
+          accessToken: response.accessToken,
+          refreshToken: response.refreshToken,
+          onboardingComplete: false,
+        }),
+      );
+
+      animateIntoStep("setupEmailProvider");
     } catch (requestError) {
       console.error("Device registration failed:", requestError);
-      setError("Could not create your account. Please try again.");
-      transitionToStep("setupName");
+      setNameError("Could not create your account. Please try again.");
+    }
+  };
+
+  const handleLinkEmailAndContinue = async () => {
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPassword = appPassword.replace(/\s+/g, "");
+
+    if (!normalizedEmail) {
+      setEmailError("Email is required.");
+      return;
+    }
+
+    if (normalizedPassword.length !== 16) {
+      setEmailError("App password must be exactly 16 characters.");
+      return;
+    }
+
+    setEmailError(null);
+
+    try {
+      await linkEmailAccount({
+        provider: emailProvider,
+        email: normalizedEmail,
+        appPassword: normalizedPassword,
+      }).unwrap();
+
+      animateIntoStep("setupAccount");
+    } catch (requestError) {
+      const apiError = requestError as { data?: { message?: string } };
+      setEmailError(apiError?.data?.message || "Unable to connect to your mailbox. Check your credentials.");
+    }
+  };
+
+  const handleSaveAccount = async () => {
+    const normalizedTitle = bankName.trim();
+    const domainNames = parseDomainNames(bankDomains);
+    const normalizedLast4 = bankLast4.trim();
+
+    if (!normalizedTitle) {
+      setBankError("Bank name is required.");
+      return;
+    }
+
+    if (!domainNames.length) {
+      setBankError("Add at least one sender domain/email.");
+      return;
+    }
+
+    if (normalizedLast4 && !/^\d{4}$/.test(normalizedLast4)) {
+      setBankError("Last 4 digits must be exactly 4 numbers.");
+      return;
+    }
+
+    setBankError(null);
+
+    try {
+      await addAccount({
+        title: normalizedTitle,
+        currency: "INR",
+        domainNames,
+        accountNumber: normalizedLast4 || undefined,
+      }).unwrap();
+      await completeOnboarding();
+    } catch (requestError) {
+      const apiError = requestError as { data?: { message?: string } };
+      setBankError(apiError?.data?.message || "Could not create account.");
     }
   };
 
   const transition = { opacity: transitionOpacity, translateX: transitionX };
+
+  if (isAuthenticated && (isLoadingLinkedAccounts || isLoadingAccounts)) {
+    return (
+      <View className="flex-1 items-center justify-center bg-black">
+        <ActivityIndicator color="#F4F4F5" />
+      </View>
+    );
+  }
 
   if (step === "intro") {
     return <IntroStep transition={transition} onContinue={() => transitionToStep("needs")} />;
@@ -245,13 +387,7 @@ export function OnboardingScreen() {
   }
 
   if (step === "setupHi") {
-    return (
-      <SetupHiStep
-        transition={transition}
-        onBack={() => transitionToStep("privacy")}
-        onContinue={() => transitionToStep("setupName")}
-      />
-    );
+    return <SetupHiStep transition={transition} onContinue={() => transitionToStep("setupName")} />;
   }
 
   if (step === "setupName") {
@@ -259,49 +395,77 @@ export function OnboardingScreen() {
       <SetupNameStep
         transition={transition}
         name={name}
-        error={error}
+        error={nameError}
+        isLoading={isRegisteringDevice}
         onNameChange={(value) => {
           setName(value);
-          if (error) setError(null);
+          if (nameError) setNameError(null);
         }}
-        onBack={() => transitionToStep("setupHi")}
-        onContinue={() => {
-          if (!name.trim()) {
-            setError("Please enter your name.");
-            return;
-          }
-          transitionToStep("setupEmail");
-        }}
+        onContinue={handleRegisterAndContinue}
       />
     );
   }
 
-  if (step === "setupEmail") {
+  if (step === "setupEmailProvider") {
     return (
-      <SetupPlaceholderStep
+      <SetupEmailProviderStep
         transition={transition}
-        progress={3}
-        title="Link your email"
-        description="Setup step 2 placeholder. We will connect your email account using an app password here."
-        ctaLabel="Continue"
-        onBack={() => transitionToStep("setupName")}
-        onContinue={() => transitionToStep("setupAccount")}
+        onSelectProvider={(provider) => {
+          setEmailProvider(provider);
+          if (emailError) setEmailError(null);
+          transitionToStep("setupEmailCredentials");
+        }}
       />
     );
   }
 
-  return (
-    <SetupPlaceholderStep
-      transition={transition}
-      progress={4}
-      title="Add an account"
-      description="Setup step 3 placeholder. We will ask which account emails you want FIY to track."
-      ctaLabel="Finish setup"
-      onBack={() => transitionToStep("setupEmail")}
-      onContinue={handleFinishOnboarding}
-      isLoading={isLoading}
-      ctaColor={colors.primary}
-      ctaTextColor={colors.onTopOfPrimary}
-    />
-  );
+  if (step === "setupEmailCredentials") {
+    return (
+      <SetupEmailCredentialsStep
+        transition={transition}
+        provider={emailProvider}
+        email={email}
+        appPassword={appPassword}
+        error={emailError}
+        isLoading={isLinkingEmail}
+        onEmailChange={(value) => {
+          setEmail(value);
+          if (emailError) setEmailError(null);
+        }}
+        onAppPasswordChange={(value) => {
+          setAppPassword(value);
+          if (emailError) setEmailError(null);
+        }}
+        onContinue={handleLinkEmailAndContinue}
+      />
+    );
+  }
+
+  if (step === "setupAccount") {
+    return (
+      <SetupAccountStep
+        transition={transition}
+        bankName={bankName}
+        domains={bankDomains}
+        last4={bankLast4}
+        error={bankError}
+        isSaving={isSavingAccount}
+        onBankNameChange={(value) => {
+          setBankName(value);
+          if (bankError) setBankError(null);
+        }}
+        onDomainsChange={(value) => {
+          setBankDomains(value);
+          if (bankError) setBankError(null);
+        }}
+        onLast4Change={(value) => {
+          setBankLast4(value.replace(/\D+/g, "").slice(0, 4));
+          if (bankError) setBankError(null);
+        }}
+        onSave={handleSaveAccount}
+      />
+    );
+  }
+
+  return <SetupNameStep transition={transition} name={name} error={nameError} onNameChange={setName} onContinue={handleRegisterAndContinue} />;
 }

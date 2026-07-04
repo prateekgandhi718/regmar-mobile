@@ -8,6 +8,7 @@ export interface Account {
   userId: string;
   title: string;
   currency: string;
+  accountNumber?: string;
   domainIds: Domain[];
 }
 
@@ -15,6 +16,7 @@ type UpsertAccountPayload = {
   title: string;
   currency: string;
   domainNames: string[];
+  accountNumber?: string;
   icon?: string;
 };
 

@@ -8,7 +8,8 @@ export type OnboardingStep =
   | "logoMorph"
   | "setupHi"
   | "setupName"
-  | "setupEmail"
+  | "setupEmailProvider"
+  | "setupEmailCredentials"
   | "setupAccount";
 
 export type BubbleNeed = {

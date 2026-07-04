@@ -7,7 +7,7 @@ import type { StepTransitionStyle } from "../types";
 
 type SetupHiStepProps = {
   transition: StepTransitionStyle;
-  onBack: () => void;
+  onBack?: () => void;
   onContinue: () => void;
 };
 

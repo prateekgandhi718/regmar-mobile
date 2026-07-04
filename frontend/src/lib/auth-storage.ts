@@ -5,6 +5,7 @@ const DEVICE_UUID_KEY = "auth.deviceUuid";
 const USER_NAME_KEY = "auth.userName";
 const ACCESS_TOKEN_KEY = "auth.accessToken";
 const REFRESH_TOKEN_KEY = "auth.refreshToken";
+const ONBOARDING_COMPLETED_KEY = "auth.onboardingCompleted";
 const TXN_CRYPTO_KEY = "txn.cryptoKey";
 
 export const getOrCreateDeviceUuid = async () => {
@@ -33,6 +34,16 @@ export const saveAuthTokens = async (accessToken: string, refreshToken: string) 
   ]);
 };
 
+export const getOnboardingCompleted = async () => {
+  const value = await SecureStore.getItemAsync(ONBOARDING_COMPLETED_KEY);
+  if (value === null) return null;
+  return value === "true";
+};
+
+export const setOnboardingCompleted = async (completed: boolean) => {
+  await SecureStore.setItemAsync(ONBOARDING_COMPLETED_KEY, completed ? "true" : "false");
+};
+
 export const clearAuthTokens = async () => {
   await Promise.all([
     SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
@@ -55,6 +66,7 @@ export const clearAllAuthLocalStorage = async () => {
     SecureStore.deleteItemAsync(USER_NAME_KEY),
     SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
     SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
+    SecureStore.deleteItemAsync(ONBOARDING_COMPLETED_KEY),
     SecureStore.deleteItemAsync(TXN_CRYPTO_KEY),
   ]);
 };
