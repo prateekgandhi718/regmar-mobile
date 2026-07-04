@@ -2,23 +2,17 @@ import express from "express";
 import { createHash } from "crypto";
 import { AuthRequest } from "../middlewares/auth";
 import { getActiveLinkedAccountByUserId } from "../db/linkedAccountModel";
-import { getAccountsByUserId } from "../db/accountModel";
-import { getSyncState, updateSyncState } from "../db/syncStateModel";
 import { decrypt } from "../helpers/encryption";
 import {
   fetchEmailsIncrementally,
   fetchLatestEmailWithAttachment,
   isImapAuthError,
 } from "../helpers/imap";
-import { getUserById } from "../db/userModel";
-import {
-  updateInvestmentByUserId,
-  getInvestmentByUserId,
-} from "../db/investmentModel";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.js";
 import { parseCASText } from "../helpers/casParser";
 import { ClassifyEmailResponse, ClassifyTransactionTypeResponse, EntityData, ExtractEntitiesResponse, TestResultEntry } from "../helpers/syncTransactions";
 import { processEmailWithPython } from "../helpers/txnProcessing";
+import { formatInvestmentPayload } from "./investments";
 
 type SyncedTransaction = {
   clientTxnId: string;
@@ -59,6 +53,19 @@ type SyncedTransaction = {
   newAmount?: number;
 };
 
+type SyncRequestDomain = {
+  clientDomainId: string;
+  fromEmail: string;
+};
+
+type SyncRequestAccount = {
+  clientAccountId: string;
+  title: string;
+  currency: string;
+  accountNumber?: string;
+  domains: SyncRequestDomain[];
+};
+
 class MlUnavailableError extends Error {
   constructor(message: string) {
     super(message);
@@ -80,12 +87,13 @@ export const syncInvestments = async (
     const userId = req.userId;
     if (!userId) return res.sendStatus(401);
 
-    // 1. Get user and PAN
-    const user = await getUserById(userId);
-    if (!user || !user.pan) {
-      return res
-        .status(400)
-        .json({ message: "PAN number not found. Please update your profile." });
+    const inputPan = String(req.body?.pan || "")
+      .trim()
+      .toUpperCase();
+    if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(inputPan)) {
+      return res.status(400).json({
+        message: "Please provide a valid PAN number to sync investments.",
+      });
     }
 
     // 2. Get active linked email account
@@ -115,13 +123,15 @@ export const syncInvestments = async (
         .json({ message: "No CAS statement found in your emails." });
     }
 
-    // 3.1 Check if this email has already been synced
-    const currentInvestment = await getInvestmentByUserId(userId);
-    if (currentInvestment && currentInvestment.lastSyncedEmailUid === uid) {
+    const clientLastSyncedEmailUid = Number(req.body?.lastSyncedEmailUid);
+    if (
+      Number.isFinite(clientLastSyncedEmailUid) &&
+      clientLastSyncedEmailUid === uid
+    ) {
       return res.status(200).json({
         message: "Your investment portfolio is already up to date.",
-        lastSyncedAt: currentInvestment.lastSyncedAt,
-        summary: currentInvestment.summary,
+        lastSyncedAt: date || new Date(),
+        lastSyncedEmailUid: uid,
         alreadySynced: true,
       });
     }
@@ -131,13 +141,13 @@ export const syncInvestments = async (
       const data = new Uint8Array(attachment);
       const loadingTask = pdfjsLib.getDocument({
         data,
-        password: user.pan.toUpperCase(),
+        password: inputPan,
         stopAtErrors: true,
       });
 
       const pdfDocument = await loadingTask.promise;
 
-      console.log(`Successfully unlocked PDF with PAN: ${user.pan}`);
+      console.log("Successfully unlocked PDF with PAN");
 
       let fullText = "";
       for (let i = 1; i <= pdfDocument.numPages; i++) {
@@ -178,11 +188,10 @@ export const syncInvestments = async (
           .json({ message: "Failed to parse statement content" });
       }
 
-      // 5. Update investment record
-      await updateInvestmentByUserId(userId, {
-        pan: user.pan,
+      const investment = formatInvestmentPayload({
+        pan: inputPan,
         lastSyncedAt: date || new Date(),
-        lastSyncedEmailUid: uid,
+        lastSyncedEmailUid: uid ?? undefined,
         casId: parsedData.casId,
         statementPeriod: parsedData.statementPeriod,
         summary: parsedData.summary,
@@ -193,8 +202,7 @@ export const syncInvestments = async (
 
       return res.status(200).json({
         message: "Statement synced and analyzed successfully",
-        lastSyncedAt: date || new Date(),
-        summary: parsedData.summary,
+        investment,
       });
     } catch (pdfError: any) {
       if (pdfError.name === "PasswordException") {
@@ -238,10 +246,13 @@ export const syncAccountTransactions = async (
     const email = linkedAccount.email;
     const provider = linkedAccount.provider === "icloud" ? "icloud" : "gmail";
 
-    // 2. Accounts with domains
-    const accounts = await getAccountsByUserId(userId);
+    const accounts = Array.isArray(req.body?.accounts)
+      ? (req.body.accounts as SyncRequestAccount[])
+      : [];
+    const incomingSyncState = req.body?.syncState as Record<string, number> | undefined;
+    const syncState = incomingSyncState && typeof incomingSyncState === "object" ? incomingSyncState : {};
     const accountsWithDomains = accounts.filter(
-      (acc) => acc.domainIds && acc.domainIds.length > 0,
+      (acc) => Array.isArray(acc.domains) && acc.domains.length > 0,
     );
 
     if (accountsWithDomains.length === 0) {
@@ -253,12 +264,12 @@ export const syncAccountTransactions = async (
 
     let totalSynced = 0;
     const syncedTransactions: SyncedTransaction[] = [];
+    const syncStateUpdates: Record<string, number> = {};
 
     for (const account of accountsWithDomains) {
-      for (const domain of account.domainIds as any) {
-        // 3. Sync state
-        const syncState = await getSyncState(userId, domain._id.toString());
-        const lastUid = syncState?.lastUid || 0;
+      for (const domain of account.domains) {
+        if (!domain?.clientDomainId || !domain?.fromEmail?.trim()) continue;
+        const lastUid = Number(syncState[domain.clientDomainId] || 0);
 
         let since: Date | undefined;
 
@@ -276,12 +287,12 @@ export const syncAccountTransactions = async (
           );
         }
 
-        // 4. Fetch emails
+          // 4. Fetch emails
         const { emails, lastUid: newLastUid } = await fetchEmailsIncrementally(
           provider,
           email,
           appPassword,
-          domain.fromEmail,
+          domain.fromEmail.trim(),
           lastUid,
           undefined,
           since,
@@ -327,22 +338,22 @@ export const syncAccountTransactions = async (
             syncedTransactions.push({
               clientTxnId: createClientTxnId(
                 userId,
-                account._id.toString(),
-                domain._id.toString(),
+                account.clientAccountId,
+                domain.clientDomainId,
                 uid,
               ),
               accountId: {
-                _id: account._id.toString(),
-                userId: account.userId.toString(),
+                _id: account.clientAccountId,
+                userId,
                 title: account.title,
                 currency: account.currency,
                 accountNumber: account.accountNumber || undefined,
               },
               domainId: {
-                _id: domain._id.toString(),
-                userId: domain.userId.toString(),
-                accountId: domain.accountId.toString(),
-                fromEmail: domain.fromEmail,
+                _id: domain.clientDomainId,
+                userId,
+                accountId: account.clientAccountId,
+                fromEmail: domain.fromEmail.trim(),
               },
               userId,
               originalDate: new Date(date).toISOString(),
@@ -362,10 +373,9 @@ export const syncAccountTransactions = async (
             totalSynced++;
             console.log("Processed transaction in memory");
           }
-
-          // 6. Update sync state
-          await updateSyncState(userId, domain._id.toString(), newLastUid);
         }
+
+        syncStateUpdates[domain.clientDomainId] = newLastUid;
       }
     }
 
@@ -373,6 +383,7 @@ export const syncAccountTransactions = async (
       message: "Sync completed successfully",
       transactionsSynced: totalSynced,
       transactions: syncedTransactions,
+      syncStateUpdates,
     });
   } catch (error) {
     if (error instanceof MlUnavailableError) {

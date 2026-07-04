@@ -302,3 +302,7 @@ export const deleteTransactionLocal = async (clientTxnId: string) => {
   await db.runAsync(`DELETE FROM ${TXN_TABLE} WHERE client_txn_id = ?`, clientTxnId);
 };
 
+export const clearAllTransactionsLocal = async () => {
+  const db = await getDb();
+  await db.runAsync(`DELETE FROM ${TXN_TABLE}`);
+};

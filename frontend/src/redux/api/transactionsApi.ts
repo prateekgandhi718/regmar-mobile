@@ -1,6 +1,7 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { baseQuery } from "./baseQuery";
 import {
+  clearAllTransactionsLocal,
   deleteTransactionLocal,
   getTransactions,
   updateTransactionLocal,
@@ -58,10 +59,22 @@ export const transactionsApi = createApi({
       },
       invalidatesTags: ["Transaction"],
     }),
+    clearTransactions: builder.mutation<{ message: string }, void>({
+      queryFn: async () => {
+        try {
+          await clearAllTransactionsLocal();
+          return { data: { message: "Transactions cleared successfully" } };
+        } catch (error) {
+          return { error: { status: "CUSTOM_ERROR", error: (error as Error).message } as never };
+        }
+      },
+      invalidatesTags: ["Transaction"],
+    }),
   }),
 });
 
 export const {
+  useClearTransactionsMutation,
   useGetTransactionsQuery,
   useUpdateTransactionMutation,
   useDeleteTransactionMutation,
