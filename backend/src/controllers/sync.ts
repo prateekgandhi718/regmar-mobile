@@ -10,15 +10,11 @@ import {
   fetchLatestEmailWithAttachment,
   isImapAuthError,
 } from "../helpers/imap";
-import { getUserById } from "../db/userModel";
-import {
-  updateInvestmentByUserId,
-  getInvestmentByUserId,
-} from "../db/investmentModel";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.js";
 import { parseCASText } from "../helpers/casParser";
 import { ClassifyEmailResponse, ClassifyTransactionTypeResponse, EntityData, ExtractEntitiesResponse, TestResultEntry } from "../helpers/syncTransactions";
 import { processEmailWithPython } from "../helpers/txnProcessing";
+import { formatInvestmentPayload } from "./investments";
 
 type SyncedTransaction = {
   clientTxnId: string;
@@ -80,12 +76,13 @@ export const syncInvestments = async (
     const userId = req.userId;
     if (!userId) return res.sendStatus(401);
 
-    // 1. Get user and PAN
-    const user = await getUserById(userId);
-    if (!user || !user.pan) {
-      return res
-        .status(400)
-        .json({ message: "PAN number not found. Please update your profile." });
+    const inputPan = String(req.body?.pan || "")
+      .trim()
+      .toUpperCase();
+    if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(inputPan)) {
+      return res.status(400).json({
+        message: "Please provide a valid PAN number to sync investments.",
+      });
     }
 
     // 2. Get active linked email account
@@ -115,13 +112,15 @@ export const syncInvestments = async (
         .json({ message: "No CAS statement found in your emails." });
     }
 
-    // 3.1 Check if this email has already been synced
-    const currentInvestment = await getInvestmentByUserId(userId);
-    if (currentInvestment && currentInvestment.lastSyncedEmailUid === uid) {
+    const clientLastSyncedEmailUid = Number(req.body?.lastSyncedEmailUid);
+    if (
+      Number.isFinite(clientLastSyncedEmailUid) &&
+      clientLastSyncedEmailUid === uid
+    ) {
       return res.status(200).json({
         message: "Your investment portfolio is already up to date.",
-        lastSyncedAt: currentInvestment.lastSyncedAt,
-        summary: currentInvestment.summary,
+        lastSyncedAt: date || new Date(),
+        lastSyncedEmailUid: uid,
         alreadySynced: true,
       });
     }
@@ -131,13 +130,13 @@ export const syncInvestments = async (
       const data = new Uint8Array(attachment);
       const loadingTask = pdfjsLib.getDocument({
         data,
-        password: user.pan.toUpperCase(),
+        password: inputPan,
         stopAtErrors: true,
       });
 
       const pdfDocument = await loadingTask.promise;
 
-      console.log(`Successfully unlocked PDF with PAN: ${user.pan}`);
+      console.log("Successfully unlocked PDF with PAN");
 
       let fullText = "";
       for (let i = 1; i <= pdfDocument.numPages; i++) {
@@ -178,11 +177,10 @@ export const syncInvestments = async (
           .json({ message: "Failed to parse statement content" });
       }
 
-      // 5. Update investment record
-      await updateInvestmentByUserId(userId, {
-        pan: user.pan,
+      const investment = formatInvestmentPayload({
+        pan: inputPan,
         lastSyncedAt: date || new Date(),
-        lastSyncedEmailUid: uid,
+        lastSyncedEmailUid: uid ?? undefined,
         casId: parsedData.casId,
         statementPeriod: parsedData.statementPeriod,
         summary: parsedData.summary,
@@ -193,8 +191,7 @@ export const syncInvestments = async (
 
       return res.status(200).json({
         message: "Statement synced and analyzed successfully",
-        lastSyncedAt: date || new Date(),
-        summary: parsedData.summary,
+        investment,
       });
     } catch (pdfError: any) {
       if (pdfError.name === "PasswordException") {
