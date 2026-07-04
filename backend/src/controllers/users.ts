@@ -1,6 +1,7 @@
 import express from 'express';
 import { AuthRequest } from '../middlewares/auth';
-import { updateUserById, getUserById } from '../db/userModel';
+import { updateUserById, getUserById, deleteUserById } from '../db/userModel';
+import { deleteLinkedAccountsByUserId } from '../db/linkedAccountModel';
 
 const isValidHexColor = (value: unknown) => typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value);
 
@@ -61,6 +62,23 @@ export const getMe = async (req: AuthRequest, res: express.Response) => {
     return res.status(200).json(toSafeUser(user));
   } catch (error) {
     console.error('Get me error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const deleteMe = async (req: AuthRequest, res: express.Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.sendStatus(401);
+
+    await Promise.all([
+      deleteLinkedAccountsByUserId(userId),
+    ]);
+    await deleteUserById(userId);
+
+    return res.status(200).json({ message: 'User data deleted successfully' });
+  } catch (error) {
+    console.error('Delete me error:', error);
     return res.status(500).json({ message: 'Internal server error' });
   }
 };

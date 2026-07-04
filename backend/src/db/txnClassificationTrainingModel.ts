@@ -30,3 +30,6 @@ export const TxnClassificationTrainingModel = mongoose.model(
 
 export const createTxnClassificationTraining = (values: Record<string, any>) =>
   new TxnClassificationTrainingModel(values).save();
+
+export const deleteTxnClassificationTrainingByUserId = (userId: string) =>
+  TxnClassificationTrainingModel.deleteMany({ userId });

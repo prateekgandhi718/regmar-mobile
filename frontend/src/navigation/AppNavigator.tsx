@@ -19,11 +19,20 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export function AppNavigator() {
   const { isDark } = useTheme();
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const hasCompletedOnboarding = useAppSelector((state) => state.auth.hasCompletedOnboarding);
+  const shouldShowMain = isAuthenticated && hasCompletedOnboarding;
+  const navigatorKey = shouldShowMain ? "main" : isAuthenticated ? "auth_onboarding" : "guest";
 
   return (
     <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
-      <Stack.Navigator initialRouteName={isAuthenticated ? "MainTabs" : "Landing"}>
-        {isAuthenticated ? (
+      <Stack.Navigator
+        key={navigatorKey}
+        initialRouteName={shouldShowMain ? "MainTabs" : isAuthenticated ? "Onboarding" : "Landing"}
+        screenOptions={{
+          animation: "slide_from_right",
+        }}
+      >
+        {shouldShowMain ? (
           <>
             <Stack.Screen
               name="MainTabs"
@@ -42,13 +51,15 @@ export function AppNavigator() {
           </>
         ) : (
           <>
-            <Stack.Screen
-              name="Landing"
-              component={LandingScreen}
-              options={{
-                headerShown: false,
-              }}
-            />
+            {!isAuthenticated ? (
+              <Stack.Screen
+                name="Landing"
+                component={LandingScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+            ) : null}
             <Stack.Screen
               name="Onboarding"
               component={OnboardingScreen}

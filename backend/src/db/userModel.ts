@@ -16,3 +16,4 @@ export const getUserByDeviceUuid = (deviceUuid: string) => UserModel.findOne({ d
 export const getUserById = (id: string) => UserModel.findById(id);
 export const createUser = (values: Record<string, any>) => new UserModel(values).save();
 export const updateUserById = (id: string, values: Record<string, any>) => UserModel.findByIdAndUpdate(id, values, { new: true });
+export const deleteUserById = (id: string) => UserModel.findByIdAndDelete(id);

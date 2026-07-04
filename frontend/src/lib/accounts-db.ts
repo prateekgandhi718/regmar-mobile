@@ -236,3 +236,12 @@ export const buildSyncAccountsPayload = async () => {
     })),
   }));
 };
+
+export const clearAllAccountsLocal = async () => {
+  const db = await getDb();
+  await db.execAsync(`
+    DELETE FROM ${SYNC_STATE_TABLE};
+    DELETE FROM ${DOMAINS_TABLE};
+    DELETE FROM ${ACCOUNTS_TABLE};
+  `);
+};

@@ -13,7 +13,7 @@ export function AccountsScreen() {
       <View className="flex-1">
         <View className="w-full flex-row items-center justify-between px-6 pt-3">
           <View className="flex-row items-center gap-2">
-            <FiyLogo size={30} color={colors.primary} />
+            <FiyLogo size={30} />
             <Text className="text-xl font-semibold text-zinc-900 dark:text-zinc-100" style={{ color: colors.primary }}>
               ACCOUNTS
             </Text>

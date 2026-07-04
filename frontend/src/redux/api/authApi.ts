@@ -30,7 +30,13 @@ export const authApi = createApi({
         body,
       }),
     }),
+    deleteMe: builder.mutation<{ message: string }, void>({
+      query: () => ({
+        url: "/users/me",
+        method: "DELETE",
+      }),
+    }),
   }),
 });
 
-export const { useRegisterDeviceMutation, useRefreshTokenMutation } = authApi;
+export const { useRegisterDeviceMutation, useRefreshTokenMutation, useDeleteMeMutation } = authApi;

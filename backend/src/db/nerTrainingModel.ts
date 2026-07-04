@@ -39,3 +39,6 @@ export const NerTrainingModel = mongoose.model(
 
 export const createNerTraining = (values: Record<string, any>) =>
   new NerTrainingModel(values).save();
+
+export const deleteNerTrainingByUserId = (userId: string) =>
+  NerTrainingModel.deleteMany({ userId });
