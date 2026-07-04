@@ -1,10 +1,8 @@
 import { useMemo } from "react";
 import { Feather } from "@expo/vector-icons";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Toast from "react-native-toast-message";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AccountSetupGate } from "@/components/accounts/AccountSetupGate";
-import { EmailLinkGate } from "@/components/email/EmailLinkGate";
 import { FiyLogo } from "@/components/fiy-logo";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { useGetAccountsQuery } from "@/redux/api/accountsApi";
@@ -12,19 +10,9 @@ import { useGetLinkedAccountsQuery } from "@/redux/api/linkedAccountsApi";
 import { useSyncTransactionsMutation } from "@/redux/api/syncApi";
 import { useGetTransactionsQuery } from "@/redux/api/transactionsApi";
 import type { Transaction } from "@/lib/transactions-types";
+import { getBankLogoUrl } from "@/lib/bank-logos";
 import { withOpacity } from "@/theme/color-theme";
-
-type DayGroup = {
-  dayLabel: string;
-  totalExpense: number;
-  transactions: Transaction[];
-};
-
-type MonthGroup = {
-  monthLabel: string;
-  totalExpense: number;
-  days: DayGroup[];
-};
+import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
 
 const formatAmount = (amount: number) =>
   amount.toLocaleString("en-IN", {
@@ -34,7 +22,26 @@ const formatAmount = (amount: number) =>
 
 const getEffectiveDate = (tx: Transaction) => new Date(tx.newDate || tx.originalDate);
 const getEffectiveAmount = (tx: Transaction) => tx.newAmount ?? tx.originalAmount;
-const isExpense = (tx: Transaction) => (tx.userType || tx.type) === "debit";
+const isDebitTransaction = (tx: Transaction) => (tx.userType || tx.type) === "debit";
+
+const formatCardDate = (date: Date) => {
+  const dateLine = date.toLocaleDateString("en-IN", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  const timeLine = date.toLocaleTimeString("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return { dateLine, timeLine };
+};
+
+const getMerchantName = (tx: Transaction) => {
+  const description = (tx.newDescription || tx.originalDescription || "Unknown Merchant").trim();
+  return description;
+};
 
 export function TransactionsScreen() {
   const { colors } = useColorTheme();
@@ -46,42 +53,10 @@ export function TransactionsScreen() {
   const isEmailLinked = linkedAccounts?.some((acc) => acc.isActive);
   const hasAccountWithDomain = accounts.some((acc) => Array.isArray(acc.domainIds) && acc.domainIds.length > 0);
 
-  const groupedTransactions = useMemo<MonthGroup[]>(() => {
-    const monthMap = new Map<string, MonthGroup>();
-    const sorted = [...transactions].sort(
-      (a, b) => getEffectiveDate(b).getTime() - getEffectiveDate(a).getTime(),
-    );
-
-    for (const tx of sorted) {
-      if (tx.refunded) continue;
-      const date = getEffectiveDate(tx);
-      const monthLabel = date
-        .toLocaleString("en-IN", { month: "short", year: "numeric" })
-        .toUpperCase();
-      const dayLabel = date.toLocaleString("en-IN", {
-        weekday: "long",
-        month: "short",
-        day: "numeric",
-      });
-      const amount = getEffectiveAmount(tx);
-      const expenseAmount = isExpense(tx) ? amount : 0;
-
-      if (!monthMap.has(monthLabel)) {
-        monthMap.set(monthLabel, { monthLabel, totalExpense: 0, days: [] });
-      }
-      const monthGroup = monthMap.get(monthLabel)!;
-      monthGroup.totalExpense += expenseAmount;
-
-      let dayGroup = monthGroup.days.find((d) => d.dayLabel === dayLabel);
-      if (!dayGroup) {
-        dayGroup = { dayLabel, totalExpense: 0, transactions: [] };
-        monthGroup.days.push(dayGroup);
-      }
-      dayGroup.totalExpense += expenseAmount;
-      dayGroup.transactions.push(tx);
-    }
-
-    return Array.from(monthMap.values());
+  const sortedTransactions = useMemo(() => {
+    return [...transactions]
+      .filter((tx) => !tx.refunded)
+      .sort((a, b) => getEffectiveDate(b).getTime() - getEffectiveDate(a).getTime());
   }, [transactions]);
 
   const handleSync = async () => {
@@ -104,12 +79,12 @@ export function TransactionsScreen() {
   };
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-zinc-50 dark:bg-zinc-950">
+    <SafeAreaView edges={["top"]} className="flex-1 bg-black">
       <View className="flex-1">
         <View className="w-full flex-row items-center justify-between px-6 pt-3">
           <View className="flex-row items-center gap-2">
             <FiyLogo size={30} />
-            <Text className="text-xl font-semibold text-zinc-900 dark:text-zinc-100" style={{ color: colors.primary }}>
+            <Text style={styles.headingText}>
               Transactions
             </Text>
           </View>
@@ -138,100 +113,225 @@ export function TransactionsScreen() {
           ) : null}
         </View>
 
-        <View className="flex-1 px-6 pb-32 pt-8">
-          <EmailLinkGate
-            title="Link your email to view transactions"
-            description="Connect Gmail or iCloud to automatically pull and categorize your latest transactions."
-          >
-            <AccountSetupGate
-              title="Add an account to start syncing"
-              description="Set up at least one account and sender domains, then sync from Transactions."
-              showPromptOnly
-            >
-              <View className="mt-6">
-                {isLinkedLoading || isTransactionsLoading ? (
-                  <View className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-                    <View className="flex-row items-center gap-2">
-                      <ActivityIndicator size="small" />
-                      <Text className="text-sm text-zinc-600 dark:text-zinc-300">Loading transactions...</Text>
+        <View className="flex-1 px-4 pt-6">
+          {isLinkedLoading || isTransactionsLoading ? (
+            <View style={styles.infoCard}>
+              <View className="flex-row items-center gap-2">
+                <ActivityIndicator size="small" color="#D4D4D8" />
+                <Text className="text-sm text-zinc-300">Loading transactions...</Text>
+              </View>
+            </View>
+          ) : !isEmailLinked ? (
+            <View style={styles.infoCard}>
+              <Text style={styles.infoTitle}>Email not linked</Text>
+              <Text style={styles.infoDescription}>
+                Link your inbox in onboarding/settings to sync transactions.
+              </Text>
+            </View>
+          ) : !hasAccountWithDomain ? (
+            <View style={styles.infoCard}>
+              <Text style={styles.infoTitle}>Account setup pending</Text>
+              <Text style={styles.infoDescription}>
+                Add at least one account with sender domains to enable syncing.
+              </Text>
+            </View>
+          ) : sortedTransactions.length === 0 ? (
+            <View style={styles.infoCard}>
+              <Text style={styles.infoTitle}>No transactions yet</Text>
+              <Text style={styles.infoDescription}>Tap Sync to pull your latest transactions.</Text>
+            </View>
+          ) : (
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingBottom: 148 }}>
+              {sortedTransactions.map((tx) => {
+                const amount = getEffectiveAmount(tx);
+                const date = getEffectiveDate(tx);
+                const { dateLine, timeLine } = formatCardDate(date);
+                const isDebit = isDebitTransaction(tx);
+                const merchant = getMerchantName(tx);
+                const logoUrl = getBankLogoUrl(tx.domainId?.fromEmail);
+
+                return (
+                  <View
+                    key={tx.clientTxnId}
+                    style={styles.transactionCard}
+                  >
+                    <View pointerEvents="none" style={styles.glowOrbLarge} />
+                    <View pointerEvents="none" style={styles.glowOrbSmall} />
+
+                    <View className="flex-row items-start justify-between">
+                      <View>
+                        <Text style={styles.dateText}>{dateLine}</Text>
+                        <Text style={styles.dateText}>{timeLine}</Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.amountBadge,
+                          styles.amountBadgeNeutral,
+                        ]}
+                      >
+                        <Text style={styles.amountBadgeText}>
+                          {isDebit ? "-" : "+"}₹{formatAmount(amount)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.cardBody}>
+                      <View style={styles.titleBlock}>
+                        <Text style={styles.contextLine}>{isDebit ? "Spent at" : "Received from"}</Text>
+                        <Text numberOfLines={2} style={styles.merchantLine}>
+                          {merchant}
+                        </Text>
+                        <Text style={styles.accountLine}>{tx.accountId.title}</Text>
+                      </View>
+                      <View style={styles.logoBadge}>
+                        {logoUrl ? (
+                          <Image source={{ uri: logoUrl }} style={styles.logoImage} resizeMode="contain" />
+                        ) : (
+                          <Text style={styles.logoFallback}>{tx.accountId.title.charAt(0).toUpperCase()}</Text>
+                        )}
+                      </View>
                     </View>
                   </View>
-                ) : groupedTransactions.length === 0 ? (
-                  <View className="items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-14 dark:border-zinc-700 dark:bg-zinc-900">
-                    <Text className="text-base font-semibold text-zinc-700 dark:text-zinc-200">No transactions yet</Text>
-                    <Text className="mt-2 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                      Tap Sync after linking email and adding accounts with sender domains.
-                    </Text>
-                  </View>
-                ) : (
-                  <ScrollView
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 20, paddingBottom: 24 }}
-                  >
-                    {groupedTransactions.map((month) => (
-                      <View key={month.monthLabel} className="gap-3">
-                        <View className="flex-row items-center justify-between border-b border-zinc-200 pb-2 dark:border-zinc-800">
-                          <Text className="text-xs font-black tracking-[1.5px] text-zinc-500 dark:text-zinc-400">
-                            {month.monthLabel}
-                          </Text>
-                          <Text className="text-sm font-black" style={{ color: colors.primary }}>
-                            -₹{formatAmount(month.totalExpense)}
-                          </Text>
-                        </View>
-
-                        {month.days.map((day) => (
-                          <View key={`${month.monthLabel}-${day.dayLabel}`} className="gap-2">
-                            <View className="flex-row items-center justify-between px-1">
-                              <Text className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-                                {day.dayLabel}
-                              </Text>
-                              <Text className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-                                -₹{formatAmount(day.totalExpense)}
-                              </Text>
-                            </View>
-                            {day.transactions.map((tx) => {
-                              const amount = getEffectiveAmount(tx);
-                              const isDebit = isExpense(tx);
-                              const description = tx.newDescription || tx.originalDescription;
-                              return (
-                                <View
-                                  key={tx.clientTxnId}
-                                  className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900"
-                                >
-                                  <View className="flex-row items-start justify-between gap-3">
-                                    <View className="flex-1">
-                                      <Text
-                                        numberOfLines={1}
-                                        className="text-sm font-semibold text-zinc-900 dark:text-zinc-100"
-                                      >
-                                        {description}
-                                      </Text>
-                                      <Text className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                        {tx.accountId.title}
-                                        {tx.categoryId?.name ? ` • ${tx.categoryId.name}` : ""}
-                                      </Text>
-                                    </View>
-                                    <Text
-                                      className="text-sm font-bold"
-                                      style={{ color: isDebit ? colors.secondary : colors.tertiary }}
-                                    >
-                                      {isDebit ? "-" : "+"}₹{formatAmount(amount)}
-                                    </Text>
-                                  </View>
-                                </View>
-                              );
-                            })}
-                          </View>
-                        ))}
-                      </View>
-                    ))}
-                  </ScrollView>
-                )}
-              </View>
-            </AccountSetupGate>
-          </EmailLinkGate>
+                );
+              })}
+            </ScrollView>
+          )}
         </View>
       </View>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  headingText: {
+    fontSize: 20,
+    lineHeight: 26,
+    color: "#F4F4F5",
+    fontFamily: DISPLAY_FONT_FAMILY,
+    fontWeight: "700",
+  },
+  infoCard: {
+    marginTop: 8,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(24,24,27,0.7)",
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+  },
+  infoTitle: {
+    color: "#F4F4F5",
+    fontSize: 17,
+    fontWeight: "700",
+  },
+  infoDescription: {
+    marginTop: 8,
+    color: "#A1A1AA",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  transactionCard: {
+    minHeight: 188,
+    borderRadius: 30,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "#101013",
+  },
+  glowOrbLarge: {
+    position: "absolute",
+    width: 220,
+    height: 220,
+    borderRadius: 999,
+    right: -60,
+    bottom: -80,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  glowOrbSmall: {
+    position: "absolute",
+    width: 156,
+    height: 156,
+    borderRadius: 999,
+    right: 36,
+    top: -82,
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  dateText: {
+    color: "#D4D4D8",
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "500",
+  },
+  amountBadge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "rgba(9,9,11,0.42)",
+  },
+  amountBadgeNeutral: {
+    borderColor: "rgba(255,255,255,0.25)",
+  },
+  amountBadgeText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#E4E4E7",
+  },
+  cardBody: {
+    marginTop: 36,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  titleBlock: {
+    flex: 1,
+  },
+  contextLine: {
+    color: "#E4E4E7",
+    fontSize: 22,
+    lineHeight: 28,
+    fontStyle: "italic",
+    fontFamily: DISPLAY_FONT_FAMILY,
+    fontWeight: "700",
+  },
+  merchantLine: {
+    marginTop: 0,
+    fontSize: 30,
+    lineHeight: 34,
+    fontFamily: DISPLAY_FONT_FAMILY,
+    fontWeight: "700",
+    color: "#F4F4F5",
+  },
+  accountLine: {
+    marginTop: 8,
+    color: "#A1A1AA",
+    fontSize: 13,
+    letterSpacing: 0.2,
+    textTransform: "uppercase",
+  },
+  logoBadge: {
+    width: 76,
+    height: 76,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.22)",
+    backgroundColor: "rgba(9,9,11,0.44)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 12,
+  },
+  logoImage: {
+    width: "100%",
+    height: "100%",
+  },
+  logoFallback: {
+    color: "#F4F4F5",
+    fontSize: 34,
+    fontFamily: DISPLAY_FONT_FAMILY,
+    fontWeight: "700",
+  },
+});

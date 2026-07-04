@@ -1,13 +1,8 @@
-import { createContext, ReactNode, useContext, useMemo, useState } from "react";
+import { createContext, ReactNode, useContext, useEffect, useMemo } from "react";
 import { useColorScheme as useNativeWindColorScheme } from "nativewind";
 
-type Theme = "light" | "dark" | "system";
-
 type ThemeContextValue = {
-  theme: Theme;
   isDark: boolean;
-  setTheme: (theme: Theme) => void;
-  toggleTheme: () => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -17,25 +12,17 @@ type ThemeProviderProps = {
 };
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const { colorScheme, setColorScheme } = useNativeWindColorScheme();
-  const [theme, setThemeState] = useState<Theme>("system");
-  const resolvedTheme: "light" | "dark" = colorScheme === "dark" ? "dark" : "light";
+  const { setColorScheme } = useNativeWindColorScheme();
+
+  useEffect(() => {
+    setColorScheme("dark");
+  }, [setColorScheme]);
 
   const value = useMemo(
     () => ({
-      theme,
-      isDark: resolvedTheme === "dark",
-      setTheme: (nextTheme: Theme) => {
-        setThemeState(nextTheme);
-        setColorScheme(nextTheme);
-      },
-      toggleTheme: () => {
-        const next = resolvedTheme === "dark" ? "light" : "dark";
-        setThemeState(next);
-        setColorScheme(next);
-      },
+      isDark: true,
     }),
-    [theme, resolvedTheme, setColorScheme],
+    [],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
