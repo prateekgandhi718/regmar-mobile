@@ -3,7 +3,6 @@ import { Feather } from "@expo/vector-icons";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Toast from "react-native-toast-message";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { FiyLogo } from "@/components/fiy-logo";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { useGetAccountsQuery } from "@/redux/api/accountsApi";
 import { useGetLinkedAccountsQuery } from "@/redux/api/linkedAccountsApi";
@@ -82,12 +81,7 @@ export function TransactionsScreen() {
     <SafeAreaView edges={["top"]} className="flex-1 bg-black">
       <View className="flex-1">
         <View className="w-full flex-row items-center justify-between px-6 pt-3">
-          <View className="flex-row items-center gap-2">
-            <FiyLogo size={30} />
-            <Text style={styles.headingText}>
-              Transactions
-            </Text>
-          </View>
+          <Text style={styles.headingText}>Transactions</Text>
           {isEmailLinked && hasAccountWithDomain ? (
             <Pressable
               onPress={handleSync}
@@ -204,8 +198,8 @@ export function TransactionsScreen() {
 
 const styles = StyleSheet.create({
   headingText: {
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: 34,
+    lineHeight: 38,
     color: "#F4F4F5",
     fontFamily: DISPLAY_FONT_FAMILY,
     fontWeight: "700",
@@ -231,11 +225,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   transactionCard: {
-    minHeight: 188,
+    minHeight: 162,
     borderRadius: 30,
     paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingTop: 14,
+    paddingBottom: 14,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.18)",
@@ -276,12 +270,12 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.25)",
   },
   amountBadgeText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: "#E4E4E7",
   },
   cardBody: {
-    marginTop: 36,
+    marginTop: 26,
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
@@ -292,16 +286,16 @@ const styles = StyleSheet.create({
   },
   contextLine: {
     color: "#E4E4E7",
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 18,
+    lineHeight: 24,
     fontStyle: "italic",
     fontFamily: DISPLAY_FONT_FAMILY,
     fontWeight: "700",
   },
   merchantLine: {
     marginTop: 0,
-    fontSize: 30,
-    lineHeight: 34,
+    fontSize: 25,
+    lineHeight: 29,
     fontFamily: DISPLAY_FONT_FAMILY,
     fontWeight: "700",
     color: "#F4F4F5",
@@ -314,9 +308,9 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   logoBadge: {
-    width: 76,
-    height: 76,
-    borderRadius: 22,
+    width: 62,
+    height: 62,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.22)",
     backgroundColor: "rgba(9,9,11,0.44)",

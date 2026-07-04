@@ -1,22 +1,16 @@
 import { ReactNode, useMemo, useState } from "react";
 import { Feather } from "@expo/vector-icons";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import Toast from "react-native-toast-message";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { getBankLogoUrl } from "@/lib/bank-logos";
 import type { MainTabParamList } from "@/navigation/MainTabsNavigator";
 import { useAddAccountMutation, useGetAccountsQuery } from "@/redux/api/accountsApi";
 import { withOpacity } from "@/theme/color-theme";
-
-type AccountSetupGateProps = {
-  title: string;
-  description: string;
-  children: ReactNode;
-  showPromptOnly?: boolean;
-  showAccountsList?: boolean;
-};
+import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
 
 const CURRENCIES = ["INR", "USD", "EUR", "GBP", "AED", "SGD"];
 
@@ -26,12 +20,13 @@ const parseDomainNames = (value: string) =>
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
 
-const metallicCardPalettes = [
-  { top: "#F8FAFC", mid: "#D1D5DB", bottom: "#9CA3AF", chip: "#D97706" },
-  { top: "#EEF2FF", mid: "#C4B5FD", bottom: "#6D28D9", chip: "#F59E0B" },
-  { top: "#ECFEFF", mid: "#67E8F9", bottom: "#0E7490", chip: "#FB923C" },
-  { top: "#FFF7ED", mid: "#FDBA74", bottom: "#C2410C", chip: "#FACC15" },
-];
+type AccountSetupGateProps = {
+  title: string;
+  description: string;
+  children: ReactNode;
+  showPromptOnly?: boolean;
+  showAccountsList?: boolean;
+};
 
 export function AccountSetupGate({
   title,
@@ -136,36 +131,45 @@ export function AccountSetupGate({
     </View>
   );
 
-  const metallicCards = showAccountsList && hasAccounts ? (
+  const accountCards = showAccountsList && hasAccounts ? (
     <View className="mt-6 gap-3">
-      {accounts.map((account, index) => {
-        const palette = metallicCardPalettes[index % metallicCardPalettes.length];
+      {accounts.map((account) => {
+        const logoUrl = getBankLogoUrl(account.domainIds[0]?.fromEmail);
+        const domainCount = account.domainIds.length;
         return (
-          <View
-            key={account._id}
-            className="overflow-hidden rounded-2xl border"
-            style={{ borderColor: withOpacity(colors.primary, 0.2), backgroundColor: palette.bottom }}
-          >
-            <View
-              className="px-4 py-4"
-              style={{
-                backgroundColor: palette.mid,
-              }}
-            >
-              <View
-                className="absolute inset-0"
-                style={{ backgroundColor: palette.top, opacity: 0.3 }}
-              />
-              <View className="mb-5 flex-row items-start justify-between">
-                <Text className="text-base font-black tracking-wide text-zinc-900">{account.title.toUpperCase()}</Text>
-                <View className="h-8 w-11 rounded-md" style={{ backgroundColor: palette.chip, opacity: 0.9 }} />
+          <View key={account._id} style={styles.accountCard}>
+            <View pointerEvents="none" style={styles.glowOrbLarge} />
+            <View pointerEvents="none" style={styles.glowOrbSmall} />
+
+            <View className="flex-row items-start justify-between">
+              <View>
+                <Text style={styles.metaLine}>{account.currency}</Text>
+                <Text style={styles.metaLine}>
+                  {domainCount} sender domain{domainCount > 1 ? "s" : ""}
+                </Text>
               </View>
-              <Text className="text-xs font-semibold tracking-[2px] text-zinc-800">
-                {account.currency}
-              </Text>
-              <Text className="mt-1 text-xs text-zinc-800">
-                {account.domainIds.length} sender domain{account.domainIds.length > 1 ? "s" : ""}
-              </Text>
+              <View style={styles.countBadge}>
+                <Text style={styles.countBadgeText}>{domainCount}</Text>
+              </View>
+            </View>
+
+            <View style={styles.accountCardBody}>
+              <View style={styles.accountTitleBlock}>
+                <Text style={styles.accountContextLine}>Account</Text>
+                <Text numberOfLines={2} style={styles.accountTitleLine}>
+                  {account.title}
+                </Text>
+                <Text style={styles.accountHintLine}>
+                  {account.accountNumber ? `•••• ${account.accountNumber.slice(-4)}` : "No last4 saved"}
+                </Text>
+              </View>
+              <View style={styles.logoBadge}>
+                {logoUrl ? (
+                  <Image source={{ uri: logoUrl }} style={styles.logoImage} resizeMode="contain" />
+                ) : (
+                  <Text style={styles.logoFallback}>{account.title.charAt(0).toUpperCase()}</Text>
+                )}
+              </View>
             </View>
           </View>
         );
@@ -186,7 +190,7 @@ export function AccountSetupGate({
         cardPrompt
       ) : null}
 
-      {metallicCards}
+      {accountCards}
       {children}
 
       <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
@@ -271,7 +275,6 @@ export function AccountSetupGate({
 
               {formError ? <Text className="text-sm text-red-500">{formError}</Text> : null}
             </View>
-
             <View className="mb-3 flex-row gap-3">
               <Pressable
                 onPress={handleCreateAccount}
@@ -306,3 +309,108 @@ export function AccountSetupGate({
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  accountCard: {
+    minHeight: 162,
+    borderRadius: 30,
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 14,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "#101013",
+  },
+  glowOrbLarge: {
+    position: "absolute",
+    width: 220,
+    height: 220,
+    borderRadius: 999,
+    right: -60,
+    bottom: -80,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  glowOrbSmall: {
+    position: "absolute",
+    width: 156,
+    height: 156,
+    borderRadius: 999,
+    right: 36,
+    top: -82,
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  metaLine: {
+    color: "#D4D4D8",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "500",
+  },
+  countBadge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: "rgba(9,9,11,0.42)",
+  },
+  countBadgeText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#E4E4E7",
+  },
+  accountCardBody: {
+    marginTop: 24,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  accountTitleBlock: {
+    flex: 1,
+  },
+  accountContextLine: {
+    color: "#E4E4E7",
+    fontSize: 18,
+    lineHeight: 24,
+    fontStyle: "italic",
+    fontFamily: DISPLAY_FONT_FAMILY,
+    fontWeight: "700",
+  },
+  accountTitleLine: {
+    marginTop: 0,
+    fontSize: 25,
+    lineHeight: 29,
+    fontFamily: DISPLAY_FONT_FAMILY,
+    fontWeight: "700",
+    color: "#F4F4F5",
+  },
+  accountHintLine: {
+    marginTop: 8,
+    color: "#A1A1AA",
+    fontSize: 12,
+    letterSpacing: 0.2,
+    textTransform: "uppercase",
+  },
+  logoBadge: {
+    width: 62,
+    height: 62,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.22)",
+    backgroundColor: "rgba(9,9,11,0.44)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 9,
+  },
+  logoImage: {
+    width: "100%",
+    height: "100%",
+  },
+  logoFallback: {
+    color: "#F4F4F5",
+    fontSize: 30,
+    fontFamily: DISPLAY_FONT_FAMILY,
+    fontWeight: "700",
+  },
+});
