@@ -11,24 +11,16 @@ export type SemanticColors = ThemePalette & {
 };
 
 export const DEFAULT_THEME_PALETTE: ThemePalette = {
-  primary: "#2563EB",
-  secondary: "#F97316",
-  tertiary: "#22C55E",
+  primary: "#FF4D6D",
+  secondary: "#F4C84A",
+  tertiary: "#69E3B0",
 };
-
-export const THEME_PALETTE_STORAGE_KEY = "theme.palette.v1";
-
-const HEX_6_REGEX = /^#[0-9a-fA-F]{6}$/;
 
 type RGB = {
   r: number;
   g: number;
   b: number;
 };
-
-export const isValidHexColor = (value: string) => HEX_6_REGEX.test(value.trim());
-
-export const normalizeHexColor = (value: string) => value.trim().toUpperCase();
 
 const hexToRgb = (hex: string): RGB | null => {
   const normalized = hex.replace("#", "").trim();
@@ -70,22 +62,11 @@ export const withOpacity = (hex: string, opacity: number) => {
   return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${boundedOpacity})`;
 };
 
-export const isValidThemePalette = (palette: ThemePalette) =>
-  isValidHexColor(palette.primary) && isValidHexColor(palette.secondary) && isValidHexColor(palette.tertiary);
-
-export const normalizeThemePalette = (palette: ThemePalette): ThemePalette => ({
-  primary: normalizeHexColor(palette.primary),
-  secondary: normalizeHexColor(palette.secondary),
-  tertiary: normalizeHexColor(palette.tertiary),
-});
-
 export const createSemanticColors = (palette: ThemePalette): SemanticColors => {
-  const normalized = normalizeThemePalette(palette);
-
   return {
-    ...normalized,
-    onTopOfPrimary: getReadableForeground(normalized.primary),
-    onTopOfSecondary: getReadableForeground(normalized.secondary),
-    onTopOfTertiary: getReadableForeground(normalized.tertiary),
+    ...palette,
+    onTopOfPrimary: getReadableForeground(palette.primary),
+    onTopOfSecondary: getReadableForeground(palette.secondary),
+    onTopOfTertiary: getReadableForeground(palette.tertiary),
   };
 };

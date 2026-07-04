@@ -48,3 +48,13 @@ export const getOrCreateTxnCryptoKey = async () => {
   await SecureStore.setItemAsync(TXN_CRYPTO_KEY, next);
   return next;
 };
+
+export const clearAllAuthLocalStorage = async () => {
+  await Promise.all([
+    SecureStore.deleteItemAsync(DEVICE_UUID_KEY),
+    SecureStore.deleteItemAsync(USER_NAME_KEY),
+    SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
+    SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
+    SecureStore.deleteItemAsync(TXN_CRYPTO_KEY),
+  ]);
+};

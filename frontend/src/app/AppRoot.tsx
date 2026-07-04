@@ -10,6 +10,9 @@ import { initTransactionsDb } from "@/lib/transactions-db";
 import { AppNavigator } from "@/navigation/AppNavigator";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { setBootstrapped, setSession } from "@/redux/features/authSlice";
+import { configureGlobalTypography } from "@/theme/typography";
+
+configureGlobalTypography();
 
 function AppStatusBar() {
   const { isDark } = useTheme();

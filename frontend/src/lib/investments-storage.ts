@@ -42,3 +42,10 @@ export const saveInvestment = async (investment: InvestmentData) => {
 export const clearStoredInvestment = async () => {
   await SecureStore.deleteItemAsync(INVESTMENT_DATA_KEY);
 };
+
+export const clearInvestmentStorage = async () => {
+  await Promise.all([
+    SecureStore.deleteItemAsync(INVESTMENT_PAN_KEY),
+    SecureStore.deleteItemAsync(INVESTMENT_DATA_KEY),
+  ]);
+};

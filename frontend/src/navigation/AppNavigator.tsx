@@ -22,7 +22,12 @@ export function AppNavigator() {
 
   return (
     <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
-      <Stack.Navigator initialRouteName={isAuthenticated ? "MainTabs" : "Landing"}>
+      <Stack.Navigator
+        initialRouteName={isAuthenticated ? "MainTabs" : "Landing"}
+        screenOptions={{
+          animation: "slide_from_right",
+        }}
+      >
         {isAuthenticated ? (
           <>
             <Stack.Screen
