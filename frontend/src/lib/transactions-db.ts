@@ -1,6 +1,6 @@
 import * as SQLite from "expo-sqlite";
 import { decryptSensitive, encryptSensitive } from "@/lib/transactions-crypto";
-import type { Transaction, TransactionCategory, TransactionFilter } from "@/lib/transactions-types";
+import type { NeedSelection, Transaction, TransactionCategory, TransactionFilter } from "@/lib/transactions-types";
 
 const DB_NAME = "transactions.db";
 const TXN_TABLE = "transactions";
@@ -27,6 +27,13 @@ type StoredTransactionRow = {
   email_body_encrypted: string;
   category_id: string | null;
   category_name: string | null;
+  need_key: NeedSelection["key"] | null;
+  need_label: string | null;
+  need_word: string | null;
+  need_color: string | null;
+  need_context_with: string | null;
+  need_context_where: string | null;
+  need_completed_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -54,6 +61,19 @@ const parseTransactionRow = async (row: StoredTransactionRow): Promise<Transacti
         }
       : undefined;
 
+  const needSelection: NeedSelection | undefined =
+    row.need_key && row.need_label && row.need_word && row.need_color
+      ? {
+          key: row.need_key,
+          label: row.need_label,
+          word: row.need_word,
+          color: row.need_color,
+          contextWith: row.need_context_with ?? undefined,
+          contextWhere: row.need_context_where ?? undefined,
+          completedAt: row.need_completed_at ?? undefined,
+        }
+      : undefined;
+
   return {
     clientTxnId: row.client_txn_id,
     accountId: JSON.parse(row.account_json),
@@ -77,6 +97,7 @@ const parseTransactionRow = async (row: StoredTransactionRow): Promise<Transacti
     refunded: Boolean(row.refunded),
     emailBody,
     categoryId,
+    needSelection,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -109,12 +130,37 @@ export const initTransactionsDb = async () => {
       email_body_encrypted TEXT NOT NULL,
       category_id TEXT,
       category_name TEXT,
+      need_key TEXT,
+      need_label TEXT,
+      need_word TEXT,
+      need_color TEXT,
+      need_context_with TEXT,
+      need_context_where TEXT,
+      need_completed_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_transactions_effective_date ON ${TXN_TABLE} (COALESCE(new_date, original_date) DESC);
     CREATE INDEX IF NOT EXISTS idx_transactions_category ON ${TXN_TABLE} (category_id);
   `);
+
+  // Lightweight migrations for existing local installs.
+  const migrationColumns = [
+    "need_key TEXT",
+    "need_label TEXT",
+    "need_word TEXT",
+    "need_color TEXT",
+    "need_context_with TEXT",
+    "need_context_where TEXT",
+    "need_completed_at TEXT",
+  ];
+  for (const column of migrationColumns) {
+    try {
+      await db.execAsync(`ALTER TABLE ${TXN_TABLE} ADD COLUMN ${column};`);
+    } catch {
+      // Column likely already exists.
+    }
+  }
 };
 
 export const upsertTransactions = async (transactions: Transaction[]) => {
@@ -150,9 +196,16 @@ export const upsertTransactions = async (transactions: Transaction[]) => {
         email_body_encrypted,
         category_id,
         category_name,
+        need_key,
+        need_label,
+        need_word,
+        need_color,
+        need_context_with,
+        need_context_where,
+        need_completed_at,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(client_txn_id) DO UPDATE SET
         account_json = excluded.account_json,
         domain_json = excluded.domain_json,
@@ -174,6 +227,13 @@ export const upsertTransactions = async (transactions: Transaction[]) => {
         email_body_encrypted = excluded.email_body_encrypted,
         category_id = excluded.category_id,
         category_name = excluded.category_name,
+        need_key = excluded.need_key,
+        need_label = excluded.need_label,
+        need_word = excluded.need_word,
+        need_color = excluded.need_color,
+        need_context_with = excluded.need_context_with,
+        need_context_where = excluded.need_context_where,
+        need_completed_at = excluded.need_completed_at,
         updated_at = excluded.updated_at`,
       tx.clientTxnId,
       JSON.stringify(tx.accountId),
@@ -196,6 +256,13 @@ export const upsertTransactions = async (transactions: Transaction[]) => {
       emailBodyEncrypted,
       tx.categoryId?._id ?? null,
       tx.categoryId?.name ?? null,
+      tx.needSelection?.key ?? null,
+      tx.needSelection?.label ?? null,
+      tx.needSelection?.word ?? null,
+      tx.needSelection?.color ?? null,
+      tx.needSelection?.contextWith ?? null,
+      tx.needSelection?.contextWhere ?? null,
+      tx.needSelection?.completedAt ?? null,
       tx.createdAt,
       tx.updatedAt,
     );
@@ -247,6 +314,7 @@ type LocalTransactionPatch = {
   refunded?: boolean;
   userType?: "credit" | "debit" | null;
   categoryId?: TransactionCategory | null;
+  needSelection?: NeedSelection | null;
 };
 
 export const updateTransactionLocal = async (
@@ -282,6 +350,22 @@ export const updateTransactionLocal = async (
     params.push(patch.categoryId?._id ?? null);
     updates.push("category_name = ?");
     params.push(patch.categoryId?.name ?? null);
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "needSelection")) {
+    updates.push("need_key = ?");
+    params.push(patch.needSelection?.key ?? null);
+    updates.push("need_label = ?");
+    params.push(patch.needSelection?.label ?? null);
+    updates.push("need_word = ?");
+    params.push(patch.needSelection?.word ?? null);
+    updates.push("need_color = ?");
+    params.push(patch.needSelection?.color ?? null);
+    updates.push("need_context_with = ?");
+    params.push(patch.needSelection?.contextWith ?? null);
+    updates.push("need_context_where = ?");
+    params.push(patch.needSelection?.contextWhere ?? null);
+    updates.push("need_completed_at = ?");
+    params.push(patch.needSelection?.completedAt ?? null);
   }
 
   if (!updates.length) return getTransactionById(clientTxnId);

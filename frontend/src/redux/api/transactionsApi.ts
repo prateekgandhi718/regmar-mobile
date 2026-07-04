@@ -6,7 +6,7 @@ import {
   getTransactions,
   updateTransactionLocal,
 } from "@/lib/transactions-db";
-import type { Transaction, TransactionCategory, TransactionFilter } from "@/lib/transactions-types";
+import type { NeedSelection, Transaction, TransactionCategory, TransactionFilter } from "@/lib/transactions-types";
 
 type UpdateTransactionPayload = {
   clientTxnId: string;
@@ -16,6 +16,7 @@ type UpdateTransactionPayload = {
   refunded?: boolean;
   userType?: "credit" | "debit" | null;
   categoryId?: TransactionCategory | null;
+  needSelection?: NeedSelection | null;
 };
 
 export const transactionsApi = createApi({

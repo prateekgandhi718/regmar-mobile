@@ -1,16 +1,27 @@
 import { DarkTheme, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { MainTabsNavigator } from "@/navigation/MainTabsNavigator";
+import type { Transaction } from "@/lib/transactions-types";
 import { useAppSelector } from "@/redux/hooks";
 import { LandingScreen } from "@/screens/auth/LandingScreen";
 import { OnboardingScreen } from "@/screens/auth/OnboardingScreen";
 import { SettingsScreen } from "@/screens/main/SettingsScreen";
+import { TransactionNeedCheckInScreen } from "@/screens/main/TransactionNeedCheckInScreen";
 
 export type RootStackParamList = {
   Landing: undefined;
   Onboarding: undefined;
   MainTabs: undefined;
   Settings: undefined;
+  TransactionNeedCheckIn: {
+    transaction: Pick<Transaction, "clientTxnId"> & {
+      merchant: string;
+      amount: number;
+      type: "credit" | "debit";
+      date: string;
+      needSelection?: Transaction["needSelection"];
+    };
+  };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -44,6 +55,14 @@ export function AppNavigator() {
               component={SettingsScreen}
               options={{
                 headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="TransactionNeedCheckIn"
+              component={TransactionNeedCheckInScreen}
+              options={{
+                headerShown: false,
+                animation: "fade_from_bottom",
               }}
             />
           </>

@@ -1,15 +1,27 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Feather } from "@expo/vector-icons";
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Animated,
+  LayoutChangeEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Toast from "react-native-toast-message";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { NeedCheckInOrb } from "@/components/transactions/NeedCheckInOrb";
+import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { useGetAccountsQuery } from "@/redux/api/accountsApi";
 import { useGetLinkedAccountsQuery } from "@/redux/api/linkedAccountsApi";
 import { useSyncTransactionsMutation } from "@/redux/api/syncApi";
 import { useGetTransactionsQuery } from "@/redux/api/transactionsApi";
 import type { Transaction } from "@/lib/transactions-types";
-import { getBankLogoUrl } from "@/lib/bank-logos";
 import { withOpacity } from "@/theme/color-theme";
 import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
 
@@ -42,7 +54,89 @@ const getMerchantName = (tx: Transaction) => {
   return description;
 };
 
+const NEED_CARD_THEMES: Record<
+  "protection" | "fuel" | "connection" | "freedom",
+  { border: string; bg: string; orbLarge: string; orbSmall: string }
+> = {
+  protection: {
+    border: "rgba(216,66,54,0.55)",
+    bg: "#2A1011",
+    orbLarge: "rgba(255,79,103,0.32)",
+    orbSmall: "rgba(255,122,69,0.24)",
+  },
+  fuel: {
+    border: "rgba(208,175,69,0.55)",
+    bg: "#292110",
+    orbLarge: "rgba(251,193,47,0.3)",
+    orbSmall: "rgba(236,216,106,0.22)",
+  },
+  connection: {
+    border: "rgba(109,134,212,0.55)",
+    bg: "#11192A",
+    orbLarge: "rgba(120,156,243,0.32)",
+    orbSmall: "rgba(137,183,233,0.24)",
+  },
+  freedom: {
+    border: "rgba(70,188,136,0.55)",
+    bg: "#0F241E",
+    orbLarge: "rgba(94,218,175,0.3)",
+    orbSmall: "rgba(126,226,171,0.24)",
+  },
+};
+
+const hexToRgba = (hex: string, alpha: number) => {
+  const normalized = hex.replace("#", "");
+  const full = normalized.length === 3 ? normalized.split("").map((c) => `${c}${c}`).join("") : normalized;
+  if (full.length !== 6) return `rgba(255,255,255,${alpha})`;
+  const int = Number.parseInt(full, 16);
+  const r = (int >> 16) & 255;
+  const g = (int >> 8) & 255;
+  const b = int & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
+};
+
+const buildNeedThemeFromColor = (color: string) => ({
+  border: hexToRgba(color, 0.55),
+  bg: "#101013",
+  orbLarge: hexToRgba(color, 0.32),
+  orbSmall: hexToRgba(color, 0.2),
+});
+
+const getNeedBackdropShapeStyle = (
+  needKey: "protection" | "fuel" | "connection" | "freedom",
+  size: "large" | "small",
+) => {
+  const isLarge = size === "large";
+  if (needKey === "protection") {
+    return {
+      borderRadius: isLarge ? 28 : 22,
+      transform: [{ rotate: "45deg" }],
+    } as const;
+  }
+  if (needKey === "fuel") {
+    return {
+      borderRadius: isLarge ? 34 : 28,
+    } as const;
+  }
+  if (needKey === "connection") {
+    return {
+      borderRadius: 999,
+      borderTopRightRadius: isLarge ? 26 : 18,
+      borderBottomRightRadius: isLarge ? 26 : 18,
+      borderTopLeftRadius: 999,
+      borderBottomLeftRadius: 999,
+    } as const;
+  }
+  return {
+    borderTopLeftRadius: isLarge ? 88 : 62,
+    borderTopRightRadius: isLarge ? 88 : 62,
+    borderBottomLeftRadius: isLarge ? 88 : 62,
+    borderBottomRightRadius: isLarge ? 30 : 22,
+  } as const;
+};
+
 export function TransactionsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useColorTheme();
   const [syncTransactions, { isLoading: isSyncing }] = useSyncTransactionsMutation();
   const { data: linkedAccounts, isLoading: isLinkedLoading } = useGetLinkedAccountsQuery();
@@ -142,50 +236,30 @@ export function TransactionsScreen() {
                 const { dateLine, timeLine } = formatCardDate(date);
                 const isDebit = isDebitTransaction(tx);
                 const merchant = getMerchantName(tx);
-                const logoUrl = getBankLogoUrl(tx.domainId?.fromEmail);
 
                 return (
-                  <View
+                  <TransactionCard
                     key={tx.clientTxnId}
-                    style={styles.transactionCard}
-                  >
-                    <View pointerEvents="none" style={styles.glowOrbLarge} />
-                    <View pointerEvents="none" style={styles.glowOrbSmall} />
-
-                    <View className="flex-row items-start justify-between">
-                      <View>
-                        <Text style={styles.dateText}>{dateLine}</Text>
-                        <Text style={styles.dateText}>{timeLine}</Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.amountBadge,
-                          styles.amountBadgeNeutral,
-                        ]}
-                      >
-                        <Text style={styles.amountBadgeText}>
-                          {isDebit ? "-" : "+"}₹{formatAmount(amount)}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.cardBody}>
-                      <View style={styles.titleBlock}>
-                        <Text style={styles.contextLine}>{isDebit ? "Spent at" : "Received from"}</Text>
-                        <Text numberOfLines={2} style={styles.merchantLine}>
-                          {merchant}
-                        </Text>
-                        <Text style={styles.accountLine}>{tx.accountId.title}</Text>
-                      </View>
-                      <View style={styles.logoBadge}>
-                        {logoUrl ? (
-                          <Image source={{ uri: logoUrl }} style={styles.logoImage} resizeMode="contain" />
-                        ) : (
-                          <Text style={styles.logoFallback}>{tx.accountId.title.charAt(0).toUpperCase()}</Text>
-                        )}
-                      </View>
-                    </View>
-                  </View>
+                    transaction={tx}
+                    dateLine={dateLine}
+                    timeLine={timeLine}
+                    amount={amount}
+                    isDebit={isDebit}
+                    merchant={merchant}
+                    accountTitle={tx.accountId.title}
+                    onOpenNeedCheckIn={() =>
+                      navigation.navigate("TransactionNeedCheckIn", {
+                        transaction: {
+                          clientTxnId: tx.clientTxnId,
+                          merchant,
+                          amount,
+                          type: isDebit ? "debit" : "credit",
+                          date: date.toISOString(),
+                          needSelection: tx.needSelection,
+                        },
+                      })
+                    }
+                  />
                 );
               })}
             </ScrollView>
@@ -193,6 +267,156 @@ export function TransactionsScreen() {
         </View>
       </View>
     </SafeAreaView>
+  );
+}
+
+type TransactionCardProps = {
+  transaction: Transaction;
+  dateLine: string;
+  timeLine: string;
+  amount: number;
+  isDebit: boolean;
+  merchant: string;
+  accountTitle: string;
+  onOpenNeedCheckIn: () => void;
+};
+
+function TransactionCard({
+  transaction,
+  dateLine,
+  timeLine,
+  amount,
+  isDebit,
+  merchant,
+  accountTitle,
+  onOpenNeedCheckIn,
+}: TransactionCardProps) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const tiltX = useRef(new Animated.Value(0)).current;
+  const tiltY = useRef(new Animated.Value(0)).current;
+  const [cardSize, setCardSize] = useState({ width: 1, height: 1 });
+  const needKey = transaction.needSelection?.key;
+  const needTheme = transaction.needSelection?.color
+    ? buildNeedThemeFromColor(transaction.needSelection.color)
+    : transaction.needSelection?.key
+      ? NEED_CARD_THEMES[transaction.needSelection.key]
+      : null;
+
+  const handleLayout = (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    if (width > 0 && height > 0) {
+      setCardSize({ width, height });
+    }
+  };
+
+  const animateReset = () => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 5 }),
+      Animated.spring(tiltX, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 4 }),
+      Animated.spring(tiltY, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 4 }),
+    ]).start();
+  };
+
+  const animatePressAt = (locationX: number, locationY: number) => {
+    const xRatio = (locationX / cardSize.width - 0.5) * 2;
+    const yRatio = (locationY / cardSize.height - 0.5) * 2;
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 0.985, useNativeDriver: true, speed: 20, bounciness: 4 }),
+      Animated.spring(tiltX, { toValue: -yRatio * 2.3, useNativeDriver: true, speed: 24, bounciness: 3 }),
+      Animated.spring(tiltY, { toValue: xRatio * 2.3, useNativeDriver: true, speed: 24, bounciness: 3 }),
+    ]).start();
+  };
+
+  const handlePressIn = (event: { nativeEvent: { locationX: number; locationY: number } }) => {
+    const { locationX, locationY } = event.nativeEvent;
+    animatePressAt(locationX, locationY);
+  };
+
+  const handlePlusPressIn = () => {
+    // Approximate touch anchor near bottom-right where the plus affordance lives.
+    animatePressAt(cardSize.width - 28, cardSize.height - 28);
+  };
+
+  const cardAnimatedStyle = {
+    transform: [
+      { perspective: 900 },
+      {
+        rotateX: tiltX.interpolate({
+          inputRange: [-8, 8],
+          outputRange: ["-8deg", "8deg"],
+        }),
+      },
+      {
+        rotateY: tiltY.interpolate({
+          inputRange: [-8, 8],
+          outputRange: ["-8deg", "8deg"],
+        }),
+      },
+      { scale },
+    ],
+  } as const;
+
+  return (
+    <Pressable onPressIn={handlePressIn} onPressOut={animateReset} onLayout={handleLayout}>
+      <Animated.View
+        style={[
+          styles.transactionCard,
+          needTheme
+            ? { borderColor: needTheme.border, backgroundColor: needTheme.bg }
+            : null,
+          cardAnimatedStyle,
+        ]}
+      >
+        <View
+          pointerEvents="none"
+          style={[
+            styles.glowOrbLarge,
+            needTheme ? { backgroundColor: needTheme.orbLarge } : null,
+            needKey ? getNeedBackdropShapeStyle(needKey, "large") : null,
+          ]}
+        />
+        <View
+          pointerEvents="none"
+          style={[
+            styles.glowOrbSmall,
+            needTheme ? { backgroundColor: needTheme.orbSmall } : null,
+            needKey ? getNeedBackdropShapeStyle(needKey, "small") : null,
+          ]}
+        />
+
+        <View className="flex-row items-start justify-between">
+          <View>
+            <Text style={styles.dateText}>{dateLine}</Text>
+            <Text style={styles.dateText}>{timeLine}</Text>
+          </View>
+          <View
+            style={[
+              styles.amountBadge,
+              styles.amountBadgeNeutral,
+            ]}
+          >
+            <Text style={styles.amountBadgeText}>
+              {isDebit ? "-" : "+"}₹{formatAmount(amount)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.cardBody}>
+          <View style={styles.titleBlock}>
+            <Text numberOfLines={2} style={styles.merchantLine}>
+              {merchant}
+            </Text>
+            <Text style={styles.accountLine}>{accountTitle}</Text>
+          </View>
+          <NeedCheckInOrb
+            onPress={onOpenNeedCheckIn}
+            onPressIn={handlePlusPressIn}
+            onPressOut={animateReset}
+            needSelection={transaction.needSelection}
+          />
+        </View>
+      </Animated.View>
+    </Pressable>
   );
 }
 
@@ -284,18 +508,10 @@ const styles = StyleSheet.create({
   titleBlock: {
     flex: 1,
   },
-  contextLine: {
-    color: "#E4E4E7",
-    fontSize: 18,
-    lineHeight: 24,
-    fontStyle: "italic",
-    fontFamily: DISPLAY_FONT_FAMILY,
-    fontWeight: "700",
-  },
   merchantLine: {
-    marginTop: 0,
-    fontSize: 25,
-    lineHeight: 29,
+    marginTop: 2,
+    fontSize: 19,
+    lineHeight: 23,
     fontFamily: DISPLAY_FONT_FAMILY,
     fontWeight: "700",
     color: "#F4F4F5",
@@ -306,26 +522,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     letterSpacing: 0.2,
     textTransform: "uppercase",
-  },
-  logoBadge: {
-    width: 62,
-    height: 62,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
-    backgroundColor: "rgba(9,9,11,0.44)",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 12,
-  },
-  logoImage: {
-    width: "100%",
-    height: "100%",
-  },
-  logoFallback: {
-    color: "#F4F4F5",
-    fontSize: 34,
-    fontFamily: DISPLAY_FONT_FAMILY,
-    fontWeight: "700",
   },
 });
