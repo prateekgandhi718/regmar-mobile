@@ -20,6 +20,7 @@ import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { EditTransactionDrawer } from "@/components/transactions/EditTransactionDrawer";
 import { QuickTagDrawer } from "@/components/transactions/QuickTagDrawer";
 import { TransactionDetailDrawer } from "@/components/transactions/TransactionDetailDrawer";
+import { TransactionsInsights } from "@/components/transactions/TransactionsInsights";
 import {
   formatAmount,
   formatCompactCurrency,
@@ -239,6 +240,7 @@ export function TransactionsScreen() {
             </View>
           ) : (
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+              <TransactionsInsights transactions={transactions} />
               {groupedTransactions.map((monthGroup) => {
                 const isMonthExpense = monthGroup.total >= 0;
                 return (
