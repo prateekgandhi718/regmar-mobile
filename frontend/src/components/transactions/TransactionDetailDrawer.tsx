@@ -1,4 +1,5 @@
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import Toast from "react-native-toast-message";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { CategoryIcon } from "@/components/category-icon";
@@ -14,6 +15,39 @@ type TransactionDetailDrawerProps = {
   onClose: () => void;
   onNeedCheckIn: (transaction: Transaction) => void;
   onEdit: () => void;
+};
+
+const hexToRgba = (hex: string, alpha: number) => {
+  const normalized = hex.replace("#", "");
+  const full = normalized.length === 3 ? normalized.split("").map((char) => `${char}${char}`).join("") : normalized;
+  if (full.length !== 6) return `rgba(212,212,216,${alpha})`;
+
+  const int = Number.parseInt(full, 16);
+  const r = (int >> 16) & 255;
+  const g = (int >> 8) & 255;
+  const b = int & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
+};
+
+const getNeedShapeStyle = (key?: string) => {
+  switch (key) {
+    case "protection":
+      return { borderRadius: 22, transform: [{ rotate: "45deg" }] };
+    case "fuel":
+      return { borderRadius: 999 };
+    case "connection":
+      return { borderRadius: 28 };
+    case "freedom":
+      return {
+        borderTopLeftRadius: 34,
+        borderTopRightRadius: 26,
+        borderBottomRightRadius: 34,
+        borderBottomLeftRadius: 12,
+        transform: [{ rotate: "-14deg" }],
+      };
+    default:
+      return { borderRadius: 22 };
+  }
 };
 
 export function TransactionDetailDrawer({
@@ -60,6 +94,38 @@ export function TransactionDetailDrawer({
         </DrawerHeader>
 
         <View style={styles.content}>
+          {transaction.needSelection ? (
+            <View style={styles.needHeroCard}>
+              <LinearGradient
+                pointerEvents="none"
+                colors={[
+                  hexToRgba(transaction.needSelection.color, 0.34),
+                  hexToRgba(transaction.needSelection.color, 0.12),
+                  "rgba(0,0,0,0)",
+                ]}
+                locations={[0, 0.55, 1]}
+                start={{ x: 0, y: 0.25 }}
+                end={{ x: 1, y: 0.95 }}
+                style={styles.needHeroGradient}
+              />
+              <View style={styles.needHeroCopyWrap}>
+                <Text style={[styles.needHeroWord, { color: transaction.needSelection.color }]}>
+                  {transaction.needSelection.word}
+                </Text>
+                <Text style={styles.needHeroMeta}>{transaction.needSelection.label}</Text>
+              </View>
+              <View style={styles.needHeroShapeWrap}>
+                <View
+                  style={[
+                    styles.needHeroShape,
+                    getNeedShapeStyle(transaction.needSelection.key),
+                    { backgroundColor: transaction.needSelection.color },
+                  ]}
+                />
+              </View>
+            </View>
+          ) : null}
+
           <View style={styles.summaryCard}>
             <View style={styles.summaryLeft}>
               <View style={styles.iconWrap}>
@@ -143,6 +209,55 @@ const styles = StyleSheet.create({
   content: {
     gap: 12,
     paddingBottom: 10,
+  },
+  needHeroCard: {
+    overflow: "hidden",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "#101114",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    minHeight: 142,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  needHeroGradient: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  needHeroCopyWrap: {
+    zIndex: 1,
+    gap: 4,
+    flex: 1,
+  },
+  needHeroWord: {
+    fontFamily: "Times New Roman",
+    fontSize: 38,
+    lineHeight: 40,
+    fontWeight: "800",
+    textTransform: "capitalize",
+  },
+  needHeroMeta: {
+    color: "#D4D4D8",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  needHeroShapeWrap: {
+    width: 88,
+    height: 88,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 12,
+  },
+  needHeroShape: {
+    width: 88,
+    height: 88,
+    borderRadius: 22,
   },
   summaryCard: {
     overflow: "hidden",

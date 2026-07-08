@@ -55,8 +55,6 @@ type MonthGroup = {
 };
 
 const FALLBACK_ICON_COLOR = "#D4D4D8";
-const CARD_SURFACE_COLOR = "#101015";
-const CARD_BORDER_COLOR = "rgba(255,255,255,0.1)";
 const ICON_CHIP_SIZE = 54;
 const ICON_SIZE = 24;
 const formatFullCurrency = (value: number) => `₹${formatAmount(Math.abs(value))}`;
