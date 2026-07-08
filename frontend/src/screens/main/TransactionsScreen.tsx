@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   ActivityIndicator,
   Animated,
@@ -58,6 +59,7 @@ const CARD_SURFACE_COLOR = "#101015";
 const CARD_BORDER_COLOR = "rgba(255,255,255,0.1)";
 const ICON_CHIP_SIZE = 54;
 const ICON_SIZE = 24;
+const formatFullCurrency = (value: number) => `₹${formatAmount(Math.abs(value))}`;
 
 const hexToRgba = (hex: string, alpha: number) => {
   const normalized = hex.replace("#", "");
@@ -259,7 +261,7 @@ export function TransactionsScreen() {
                             <Text style={styles.dayLabel}>{formatDayLabel(dayGroup.date)}</Text>
                             <Text style={[styles.dayTotal, isDayExpense ? styles.dayExpenseText : styles.dayIncomeText]}>
                               {isDayExpense ? "-" : "+"}
-                              {formatCompactCurrency(dayGroup.total)}
+                              {formatFullCurrency(dayGroup.total)}
                             </Text>
                           </View>
 
@@ -384,6 +386,7 @@ function TransactionRow({ transaction, onPress, onTagPress }: TransactionRowProp
   return (
     <Pressable onPress={() => onPress(transaction)} onPressIn={handlePressIn} onPressOut={animateReset} onLayout={handleLayout}>
       <Animated.View style={[styles.transactionRow, animatedStyle]}>
+        {transaction.needSelection?.color ? <NeedTintOverlay color={transaction.needSelection.color} /> : null}
         <View style={styles.rowContent}>
           {transaction.categoryId ? (
             <View style={styles.iconCell}>
@@ -419,6 +422,23 @@ function TransactionRow({ transaction, onPress, onTagPress }: TransactionRowProp
         </View>
       </Animated.View>
     </Pressable>
+  );
+}
+
+type NeedTintOverlayProps = {
+  color: string;
+};
+
+function NeedTintOverlay({ color }: NeedTintOverlayProps) {
+  return (
+    <LinearGradient
+      pointerEvents="none"
+      colors={[hexToRgba(color, 0.26), hexToRgba(color, 0.11), "rgba(0,0,0,0)"]}
+      locations={[0, 0.36, 1]}
+      start={{ x: 0, y: 0.5 }}
+      end={{ x: 1, y: 0.5 }}
+      style={styles.gradientOverlay}
+    />
   );
 }
 
@@ -503,24 +523,39 @@ const styles = StyleSheet.create({
   },
   rowSeparator: {
     height: 1,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.07)",
     marginVertical: 8,
-    marginHorizontal: 6,
+    marginHorizontal: 8,
   },
   transactionRow: {
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: CARD_BORDER_COLOR,
-    backgroundColor: CARD_SURFACE_COLOR,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "#0F1016",
     overflow: "hidden",
-    paddingHorizontal: 8,
-    paddingVertical: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 11,
+    shadowColor: "#000000",
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 2,
   },
   rowContent: {
+    position: "relative",
+    zIndex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    minHeight: 56,
+    gap: 10,
+    minHeight: 54,
+  },
+  gradientOverlay: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 0,
   },
   iconCell: {
     width: 60,
@@ -530,10 +565,10 @@ const styles = StyleSheet.create({
   categoryIconChip: {
     width: ICON_CHIP_SIZE,
     height: ICON_CHIP_SIZE,
-    borderRadius: 16,
+    borderRadius: 17,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.24)",
+    backgroundColor: "rgba(255,255,255,0.09)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -549,15 +584,15 @@ const styles = StyleSheet.create({
   merchantLine: {
     color: "#F4F4F5",
     fontFamily: "System",
-    fontWeight: "700",
-    fontSize: 16,
-    lineHeight: 20,
-    letterSpacing: 0.2,
+    fontWeight: "800",
+    fontSize: 15,
+    lineHeight: 19,
+    letterSpacing: 0.25,
   },
   accountLine: {
-    color: "#8E8E95",
-    fontSize: 11,
-    letterSpacing: 1,
+    color: "#8F9099",
+    fontSize: 12,
+    letterSpacing: 0.9,
     fontWeight: "700",
   },
   tagButton: {
@@ -567,11 +602,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.11)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: "rgba(255,255,255,0.24)",
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 4,
   },
   tagPlusWrap: {
     width: 14,
@@ -587,14 +622,15 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   amountCell: {
-    minWidth: 104,
+    minWidth: 112,
     alignItems: "flex-end",
     justifyContent: "center",
   },
   amountText: {
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: "900",
+    fontSize: 17,
+    lineHeight: 21,
+    fontWeight: "800",
+    letterSpacing: 0.1,
   },
   debitText: {
     color: "#F4F4F5",
