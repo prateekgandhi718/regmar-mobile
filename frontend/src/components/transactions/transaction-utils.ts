@@ -1,4 +1,5 @@
 import type { Transaction } from "@/lib/transactions-types";
+import { isDebitExcludedCategory } from "@/components/transactions/debit-exclusion-categories";
 
 export const formatAmount = (amount: number) =>
   amount.toLocaleString("en-IN", {
@@ -32,16 +33,17 @@ export const getMerchantName = (tx: Transaction) =>
   (tx.newDescription || tx.originalDescription || "Unknown Merchant").trim();
 
 export const isInvestment = (tx: Transaction) =>
-  tx.categoryId?.name?.trim().toLowerCase() === "investment";
+  (tx.categoryId?.name?.trim().toLowerCase() || "") === "investment";
 
 export const isSelfTransfer = (tx: Transaction) =>
-  tx.categoryId?.name?.trim().toLowerCase() === "self transfer";
+  (tx.categoryId?.name?.trim().toLowerCase() || "") === "self transfer";
+
+export const isDebitExcludedTransaction = (tx: Transaction) => isDebitExcludedCategory(tx.categoryId?.name);
 
 export const isExpenseTransaction = (tx: Transaction) => {
   if (!isDebitTransaction(tx)) return false;
   if (tx.refunded) return false;
-  if (isInvestment(tx)) return false;
-  if (isSelfTransfer(tx)) return false;
+  if (isDebitExcludedTransaction(tx)) return false;
   return true;
 };
 
