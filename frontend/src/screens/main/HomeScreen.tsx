@@ -5,10 +5,10 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { EmailLinkGate } from "@/components/email/EmailLinkGate";
-import { FiyLogo } from "@/components/fiy-logo";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { getStoredName } from "@/lib/auth-storage";
+import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -35,12 +35,12 @@ export function HomeScreen() {
     <SafeAreaView edges={["top"]} className="flex-1 bg-zinc-50 dark:bg-zinc-950">
       <View className="flex-1">
         <View className="w-full flex-row items-center justify-between px-6 pt-3">
-          <View className="flex-row items-center gap-2">
-            <FiyLogo size={30} />
-            <Text className="text-xl font-semibold text-zinc-900 dark:text-zinc-100" style={{ color: colors.primary }}>
-              FIY
-            </Text>
-          </View>
+          <Text
+            className="text-zinc-100"
+            style={{ color: colors.primary, fontSize: 34, lineHeight: 38, fontFamily: DISPLAY_FONT_FAMILY, fontWeight: "700" }}
+          >
+            Home
+          </Text>
           <Pressable
             onPress={() => navigation.navigate("Settings")}
             className="h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900"

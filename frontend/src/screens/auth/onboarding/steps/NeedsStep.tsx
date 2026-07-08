@@ -44,10 +44,7 @@ export function NeedsStep({ transition, bubbles, onContinue }: NeedsStepProps) {
             style={{ fontFamily: DISPLAY_FONT_FAMILY, fontWeight: "700" }}
           >
             Find needs
-            {"\n"}behind your spend
-          </Text>
-          <Text className="mt-3 text-base leading-6 text-zinc-100">
-            Track the need each spend fulfilled so patterns become visible over time.
+            {"\n"}behind your spends
           </Text>
           <Pressable
             onPress={onContinue}

@@ -18,7 +18,6 @@ import { useDeleteMeMutation } from "@/redux/api/authApi";
 import { accountsApi } from "@/redux/api/accountsApi";
 import { linkedAccountsApi } from "@/redux/api/linkedAccountsApi";
 import { useClearTransactionsMutation } from "@/redux/api/transactionsApi";
-import { ModeToggle } from "@/components/mode-toggle";
 import { withOpacity } from "@/theme/color-theme";
 
 export function SettingsScreen() {
@@ -114,7 +113,6 @@ export function SettingsScreen() {
               SETTINGS
             </Text>
           </View>
-          <ModeToggle />
         </View>
 
         <ScrollView

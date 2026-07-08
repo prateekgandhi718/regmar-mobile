@@ -2,7 +2,6 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { AppProviders } from "@/components/providers/AppProviders";
-import { useTheme } from "@/components/providers/theme-provider";
 import { initAccountsDb } from "@/lib/accounts-db";
 import { API_BASE_URL } from "@/lib/api";
 import {
@@ -22,8 +21,7 @@ import { configureGlobalTypography } from "@/theme/typography";
 configureGlobalTypography();
 
 function AppStatusBar() {
-  const { isDark } = useTheme();
-  return <StatusBar style={isDark ? "light" : "dark"} />;
+  return <StatusBar style="light" />;
 }
 
 function AuthBootstrap() {
@@ -97,7 +95,7 @@ function AuthBootstrap() {
 
   if (!isBootstrapped) {
     return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-zinc-950">
+      <View className="flex-1 items-center justify-center bg-zinc-950">
         <ActivityIndicator size="large" />
       </View>
     );

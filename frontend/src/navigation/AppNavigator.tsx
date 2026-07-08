@@ -1,30 +1,41 @@
-import { DarkTheme, DefaultTheme, NavigationContainer } from "@react-navigation/native";
+import { DarkTheme, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { useTheme } from "@/components/providers/theme-provider";
 import { MainTabsNavigator } from "@/navigation/MainTabsNavigator";
+import type { Transaction } from "@/lib/transactions-types";
 import { useAppSelector } from "@/redux/hooks";
 import { LandingScreen } from "@/screens/auth/LandingScreen";
 import { OnboardingScreen } from "@/screens/auth/OnboardingScreen";
 import { SettingsScreen } from "@/screens/main/SettingsScreen";
+import { TransactionNeedCheckInScreen } from "@/screens/main/TransactionNeedCheckInScreen";
 
 export type RootStackParamList = {
   Landing: undefined;
   Onboarding: undefined;
   MainTabs: undefined;
   Settings: undefined;
+  TransactionNeedCheckIn: {
+    transaction: Pick<Transaction, "clientTxnId"> & {
+      merchant: string;
+      amount: number;
+      type: "credit" | "debit";
+      date: string;
+      needSelection?: Transaction["needSelection"];
+      categoryName?: string;
+      accountTitle?: string;
+    };
+  };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function AppNavigator() {
-  const { isDark } = useTheme();
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const hasCompletedOnboarding = useAppSelector((state) => state.auth.hasCompletedOnboarding);
   const shouldShowMain = isAuthenticated && hasCompletedOnboarding;
   const navigatorKey = shouldShowMain ? "main" : isAuthenticated ? "auth_onboarding" : "guest";
 
   return (
-    <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
+    <NavigationContainer theme={DarkTheme}>
       <Stack.Navigator
         key={navigatorKey}
         initialRouteName={shouldShowMain ? "MainTabs" : isAuthenticated ? "Onboarding" : "Landing"}
@@ -44,6 +55,13 @@ export function AppNavigator() {
             <Stack.Screen
               name="Settings"
               component={SettingsScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="TransactionNeedCheckIn"
+              component={TransactionNeedCheckInScreen}
               options={{
                 headerShown: false,
               }}

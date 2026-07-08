@@ -4,6 +4,7 @@ import { authApi } from "./api/authApi";
 import { categoriesApi } from "./api/categoriesApi";
 import { investmentsApi } from "./api/investmentsApi";
 import { linkedAccountsApi } from "./api/linkedAccountsApi";
+import { needsApi } from "./api/needsApi";
 import { nerFeedbackApi } from "./api/nerFeedbackApi";
 import { syncApi } from "./api/syncApi";
 import { transactionsApi } from "./api/transactionsApi";
@@ -18,6 +19,7 @@ export const store = configureStore({
     [categoriesApi.reducerPath]: categoriesApi.reducer,
     [investmentsApi.reducerPath]: investmentsApi.reducer,
     [linkedAccountsApi.reducerPath]: linkedAccountsApi.reducer,
+    [needsApi.reducerPath]: needsApi.reducer,
     [nerFeedbackApi.reducerPath]: nerFeedbackApi.reducer,
     [syncApi.reducerPath]: syncApi.reducer,
     [transactionsApi.reducerPath]: transactionsApi.reducer,
@@ -30,6 +32,7 @@ export const store = configureStore({
       categoriesApi.middleware,
       investmentsApi.middleware,
       linkedAccountsApi.middleware,
+      needsApi.middleware,
       nerFeedbackApi.middleware,
       syncApi.middleware,
       transactionsApi.middleware,

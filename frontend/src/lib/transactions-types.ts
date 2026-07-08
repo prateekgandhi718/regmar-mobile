@@ -25,6 +25,16 @@ export interface TransactionCategory {
   name: string;
 }
 
+export interface NeedSelection {
+  key: "protection" | "fuel" | "connection" | "freedom";
+  label: string;
+  word: string;
+  color: string;
+  contextWith?: string;
+  contextWhere?: string;
+  completedAt?: string;
+}
+
 export interface Transaction {
   clientTxnId: string;
   accountId: Account;
@@ -46,6 +56,7 @@ export interface Transaction {
   refunded: boolean;
   emailBody: string;
   categoryId?: TransactionCategory;
+  needSelection?: NeedSelection;
   createdAt: string;
   updatedAt: string;
 }
@@ -54,4 +65,3 @@ export interface TransactionFilter {
   fromDate?: string;
   toDate?: string;
 }
-

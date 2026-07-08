@@ -15,7 +15,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
-import { useTheme } from "@/components/providers/theme-provider";
 
 type TabMeta = {
   label: string;
@@ -31,7 +30,6 @@ const TAB_META: Record<string, TabMeta> = {
 
 export function LiquidGlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { isDark } = useTheme();
   const { colors } = useColorTheme();
   const [reduceTransparencyEnabled, setReduceTransparencyEnabled] = useState(false);
   const [rowWidth, setRowWidth] = useState(0);
@@ -87,10 +85,10 @@ export function LiquidGlassTabBar({ state, descriptors, navigation }: BottomTabB
     };
   });
 
-  const iconColor = isDark ? "#d4d4d8" : "#52525b";
-  const labelColor = isDark ? "#d4d4d8" : "#52525b";
+  const iconColor = "#d4d4d8";
+  const labelColor = "#d4d4d8";
   const activeColor = colors.primary;
-  const colorScheme = isDark ? "dark" : "light";
+  const colorScheme = "dark";
 
   const onRowLayout = (event: LayoutChangeEvent) => {
     const nextWidth = event.nativeEvent.layout.width;
@@ -109,7 +107,7 @@ export function LiquidGlassTabBar({ state, descriptors, navigation }: BottomTabB
           isInteractive
         />
       ) : (
-        <View style={[styles.activeFallbackPill, isDark ? styles.activeTabDark : styles.activeTabLight]} />
+        <View style={[styles.activeFallbackPill, styles.activeTabDark]} />
       )}
     </Animated.View>
   ) : null;
@@ -178,7 +176,7 @@ export function LiquidGlassTabBar({ state, descriptors, navigation }: BottomTabB
 
   return (
     <View style={[styles.container, { paddingBottom: Math.max(insets.bottom + 2, 12) }]}>
-      <View style={[styles.shell, isDark ? styles.shellDark : styles.shellLight]}>{shellBody}</View>
+      <View style={[styles.shell, styles.shellDark]}>{shellBody}</View>
     </View>
   );
 }
@@ -205,15 +203,6 @@ const styles = StyleSheet.create({
   overlayRow: {
     ...StyleSheet.absoluteFill,
     justifyContent: "center",
-  },
-  shellLight: {
-    borderColor: "rgba(255,255,255,0.72)",
-    backgroundColor: "rgba(255,255,255,0.72)",
-    shadowColor: "#64748b",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 20,
-    elevation: 9,
   },
   shellDark: {
     borderColor: "rgba(255,255,255,0.22)",
@@ -256,11 +245,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 3,
     paddingHorizontal: 4,
-  },
-  activeTabLight: {
-    backgroundColor: "rgba(255,255,255,0.36)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.76)",
   },
   activeTabDark: {
     backgroundColor: "rgba(255,255,255,0.14)",

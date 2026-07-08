@@ -5,7 +5,6 @@ import Svg, { Circle, Polyline } from "react-native-svg";
 import Toast from "react-native-toast-message";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { EmailLinkGate } from "@/components/email/EmailLinkGate";
-import { FiyLogo } from "@/components/fiy-logo";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
 import type { HistoricalValuation } from "@/lib/investments-types";
 import { isValidPan, sanitizePan } from "@/lib/investments-storage";
@@ -13,6 +12,7 @@ import { useGetLinkedAccountsQuery } from "@/redux/api/linkedAccountsApi";
 import { useGetInvestmentPanQuery, useGetMyInvestmentsQuery, useSaveInvestmentPanMutation } from "@/redux/api/investmentsApi";
 import { useSyncInvestmentsMutation } from "@/redux/api/syncApi";
 import { withOpacity } from "@/theme/color-theme";
+import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
 
 const formatCurrency = (value: number) => {
   if (value >= 10000000) return `₹${(value / 10000000).toFixed(2)}Cr`;
@@ -150,12 +150,12 @@ export function InvestmentsScreen() {
     <SafeAreaView edges={["top"]} className="flex-1 bg-zinc-50 dark:bg-zinc-950">
       <View className="flex-1">
         <View className="w-full flex-row items-center justify-between px-6 pt-3">
-          <View className="flex-row items-center gap-2">
-            <FiyLogo size={30} />
-            <Text className="text-xl font-semibold text-zinc-900 dark:text-zinc-100" style={{ color: colors.primary }}>
-              INVESTMENTS
-            </Text>
-          </View>
+          <Text
+            className="text-zinc-100"
+            style={{ color: colors.primary, fontSize: 34, lineHeight: 38, fontFamily: DISPLAY_FONT_FAMILY, fontWeight: "700" }}
+          >
+            Investments
+          </Text>
           {isEmailLinked && hasPan ? (
             <Pressable
               onPress={handleSync}

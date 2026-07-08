@@ -32,8 +32,7 @@ export function PrivacyStep({ transition, onAccept }: PrivacyStepProps) {
         </Text>
 
         <Text className="mt-4 text-base leading-7 text-zinc-300">
-          Your financial reflections stay private. We do not use AI to process your personal entries, and we do not
-          sell your data.
+          Your financial reflections stay private. We do not use AI to process your personal entries, and we do not sell your data.
         </Text>
         <Text className="mt-4 text-base leading-7 text-zinc-300">
           By default, your information stays on your device. We do not store personal data to improve models unless you

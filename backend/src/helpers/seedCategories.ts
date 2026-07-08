@@ -1,42 +1,52 @@
 import { CategoryModel } from '../db/categoryModel';
 
-const defaultCategories = [
-  { name: 'Investment' },
-  { name: 'Income' },
-  { name: 'Personal' },
-  { name: 'Work' },
-  { name: 'Business' },
-  { name: 'Restaurants' },
-  { name: 'Housing' },
-  { name: 'Electricity' },
-  { name: 'Transport & Fuel' },
-  { name: 'Food & Grocery' },
-  { name: 'Medical' },
-  { name: 'Travel' },
-  { name: 'Fitness' },
-  { name: 'Insurance' },
-  { name: 'Entertainment' },
-  { name: 'Internet & Telecom' },
-  { name: 'Gift' },
-  { name: 'Taxes' },
-  { name: 'Utility' },
-  { name: 'Shopping' },
-  { name: 'Card Repayment' },
-  { name: 'ATM' },
-  { name: 'Bank Charges' },
-  { name: 'Reimbursement' },
-  { name: 'Self Transfer' },
-  { name: 'Loan' },
-  { name: 'Education' }
+const categoryNames = [
+  'Investment',
+  'Income',
+  'Personal',
+  'Work',
+  'Business',
+  'Restaurants',
+  'Housing',
+  'Electricity',
+  'Transport & Fuel',
+  'Food & Grocery',
+  'Medical',
+  'Travel',
+  'Fitness',
+  'Insurance',
+  'Entertainment',
+  'Internet & Telecom',
+  'Gift',
+  'Taxes',
+  'Utility',
+  'Shopping',
+  'Card Repayment',
+  'ATM',
+  'Bank Charges',
+  'Reimbursement',
+  'Self Transfer',
+  'Loan',
+  'Education',
 ];
+
+const defaultCategories = categoryNames.map((name, index) => ({
+  name,
+  sortOrder: index + 1,
+  isActive: true,
+}));
 
 export const seedCategories = async () => {
   try {
-    for (const cat of defaultCategories) {
+    for (const category of defaultCategories) {
       await CategoryModel.findOneAndUpdate(
-        { name: cat.name },
-        { name: cat.name },
-        { upsert: true, new: true }
+        { name: category.name },
+        category,
+        {
+          upsert: true,
+          new: true,
+          setDefaultsOnInsert: true,
+        },
       );
     }
     console.log('Default categories synced successfully');

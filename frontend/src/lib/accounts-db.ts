@@ -42,6 +42,10 @@ type AddLocalAccountPayload = {
   accountNumber?: string;
 };
 
+type UpdateLocalAccountPayload = AddLocalAccountPayload & {
+  clientAccountId: string;
+};
+
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 const getDb = () => {
@@ -190,6 +194,65 @@ export const deleteLocalAccount = async (clientAccountId: string) => {
   await db.runAsync(`DELETE FROM ${ACCOUNTS_TABLE} WHERE client_account_id = ?`, clientAccountId);
 
   return domains.length > 0;
+};
+
+export const updateLocalAccount = async (
+  payload: UpdateLocalAccountPayload,
+): Promise<LocalAccount | null> => {
+  const db = await getDb();
+  const timestamp = nowIso();
+  const normalizedTitle = payload.title.trim();
+  const normalizedDomains = payload.domainNames.map(normalizeDomain).filter(Boolean);
+
+  if (!normalizedTitle || !normalizedDomains.length) {
+    return null;
+  }
+
+  const existing = await db.getFirstAsync<{ client_account_id: string }>(
+    `SELECT client_account_id FROM ${ACCOUNTS_TABLE} WHERE client_account_id = ?`,
+    payload.clientAccountId,
+  );
+  if (!existing) return null;
+
+  await db.runAsync(
+    `UPDATE ${ACCOUNTS_TABLE}
+     SET title = ?, currency = ?, account_number = ?, updated_at = ?
+     WHERE client_account_id = ?`,
+    normalizedTitle,
+    payload.currency || "INR",
+    payload.accountNumber ?? null,
+    timestamp,
+    payload.clientAccountId,
+  );
+
+  await db.runAsync(
+    `DELETE FROM ${SYNC_STATE_TABLE} WHERE client_domain_id IN (
+      SELECT client_domain_id FROM ${DOMAINS_TABLE} WHERE client_account_id = ?
+    )`,
+    payload.clientAccountId,
+  );
+  await db.runAsync(`DELETE FROM ${DOMAINS_TABLE} WHERE client_account_id = ?`, payload.clientAccountId);
+
+  for (const fromEmail of normalizedDomains) {
+    const domainId = generateId();
+    await db.runAsync(
+      `INSERT INTO ${DOMAINS_TABLE} (
+        client_domain_id,
+        client_account_id,
+        from_email,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?)`,
+      domainId,
+      payload.clientAccountId,
+      fromEmail,
+      timestamp,
+      timestamp,
+    );
+  }
+
+  const accounts = await getLocalAccounts();
+  return accounts.find((item) => item._id === payload.clientAccountId) || null;
 };
 
 export const getSyncStateMap = async (): Promise<Record<string, number>> => {
