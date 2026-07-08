@@ -111,7 +111,7 @@ export function TransactionsInsights({ transactions }: TransactionsInsightsProps
         avgInvestments: 0,
         rangeLabel: "",
         categories: [] as Array<{ name: string; amount: number; percent: number; color: string }>,
-        needs: [] as Array<{ key: string; label: string; amount: number; percent: number; color: string }>,
+        needs: [] as Array<{ key: string; label: string; amount: number; percent: number; color: string; topWord?: string }>,
       };
     }
 
@@ -120,7 +120,10 @@ export function TransactionsInsights({ transactions }: TransactionsInsightsProps
     let totalInvestments = 0;
     let totalNeedsAmount = 0;
     const categoryTotals = new Map<string, number>();
-    const needTotals = new Map<string, { label: string; color: string; amount: number }>();
+    const needTotals = new Map<
+      string,
+      { label: string; color: string; amount: number; wordTotals: Map<string, number> }
+    >();
 
     filteredTransactions.forEach((tx) => {
       if (tx.refunded) return;
@@ -133,11 +136,19 @@ export function TransactionsInsights({ transactions }: TransactionsInsightsProps
         const current = needTotals.get(tx.needSelection.key);
         if (current) {
           current.amount += amount;
+          if (tx.needSelection.word) {
+            current.wordTotals.set(tx.needSelection.word, (current.wordTotals.get(tx.needSelection.word) || 0) + amount);
+          }
         } else {
+          const wordTotals = new Map<string, number>();
+          if (tx.needSelection.word) {
+            wordTotals.set(tx.needSelection.word, amount);
+          }
           needTotals.set(tx.needSelection.key, {
             label: tx.needSelection.label,
             color: tx.needSelection.color,
             amount,
+            wordTotals,
           });
         }
       }
@@ -165,13 +176,17 @@ export function TransactionsInsights({ transactions }: TransactionsInsightsProps
       .sort((a, b) => b.amount - a.amount);
 
     const needs = Array.from(needTotals.entries())
-      .map(([key, item]) => ({
-        key,
-        label: item.label,
-        amount: item.amount,
-        percent: totalNeedsAmount ? (item.amount / totalNeedsAmount) * 100 : 0,
-        color: item.color,
-      }))
+      .map(([key, item]) => {
+        const topWordEntry = Array.from(item.wordTotals.entries()).sort((a, b) => b[1] - a[1])[0];
+        return {
+          key,
+          label: item.label,
+          amount: item.amount,
+          percent: totalNeedsAmount ? (item.amount / totalNeedsAmount) * 100 : 0,
+          color: item.color,
+          topWord: topWordEntry?.[0],
+        };
+      })
       .sort((a, b) => b.amount - a.amount);
 
     const avgExpenses = totalExpenses / (monthSeries.length || 1);
@@ -198,7 +213,8 @@ export function TransactionsInsights({ transactions }: TransactionsInsightsProps
         {
           value: point.investments,
           frontColor: INVESTMENT_COLOR,
-          label: point.label,
+          label: "",
+          labelComponent: () => <Text style={styles.xAxisCenteredLabel}>{point.label}</Text>,
           spacing: 16,
           barBorderTopLeftRadius: 5,
           barBorderTopRightRadius: 5,
@@ -321,7 +337,7 @@ export function TransactionsInsights({ transactions }: TransactionsInsightsProps
           <View style={styles.categoryLegendWrap}>
             {selectedData.categories.map((category) => (
               <View key={category.name} style={styles.categoryLegendItem}>
-                <View style={[styles.legendDotSmall, { backgroundColor: category.color }]} />
+                <View style={[styles.categoryLegendDot, { backgroundColor: category.color }]} />
                 <Text style={styles.splitLegendName}>{category.name}</Text>
                 <Text style={styles.splitLegendPercent}>{Math.round(category.percent)}%</Text>
               </View>
@@ -342,10 +358,15 @@ export function TransactionsInsights({ transactions }: TransactionsInsightsProps
           </View>
           <View style={styles.categoryLegendWrap}>
             {selectedData.needs.map((need) => (
-              <View key={need.key} style={styles.categoryLegendItem}>
-                <View style={[styles.legendDotSmall, { backgroundColor: need.color }]} />
-                <Text style={styles.splitLegendName}>{need.label}</Text>
-                <Text style={styles.splitLegendPercent}>{Math.round(need.percent)}%</Text>
+              <View key={need.key} style={styles.needLegendItem}>
+                <View style={[styles.needLegendDot, { backgroundColor: need.color }]} />
+                <View style={styles.needLegendCopy}>
+                  <View style={styles.needLegendTitleRow}>
+                    <Text style={styles.splitLegendName}>{need.label}</Text>
+                    <Text style={styles.splitLegendPercent}>{Math.round(need.percent)}%</Text>
+                  </View>
+                  {need.topWord ? <Text style={styles.needLegendSubword}>Top: {need.topWord}</Text> : null}
+                </View>
               </View>
             ))}
           </View>
@@ -430,6 +451,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
+  xAxisCenteredLabel: {
+    color: "#8E8E95",
+    fontSize: 12,
+    fontWeight: "700",
+    transform: [{ translateX: -7 }],
+    textAlign: "center",
+    width: 20,
+  },
   yAxisText: {
     color: "#8E8E95",
     fontSize: 11,
@@ -479,11 +508,6 @@ const styles = StyleSheet.create({
     gap: 6,
     marginRight: 8,
   },
-  legendDotSmall: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-  },
   splitLegendName: {
     color: "#E4E4E7",
     fontSize: 12,
@@ -504,5 +528,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     marginRight: 8,
+  },
+  categoryLegendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    marginTop: 1,
+  },
+  needLegendItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    marginRight: 8,
+  },
+  needLegendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    marginTop: 4,
+  },
+  needLegendCopy: {
+    gap: 1,
+  },
+  needLegendTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  needLegendSubword: {
+    color: "#8E8E95",
+    fontSize: 11,
+    fontWeight: "600",
   },
 });
