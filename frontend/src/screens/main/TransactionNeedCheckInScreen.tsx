@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Toast from "react-native-toast-message";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import Toast from "react-native-toast-message";
+import { CategoryIcon } from "@/components/category-icon";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { useGetNeedsQuery } from "@/redux/api/needsApi";
 import { useUpdateTransactionMutation } from "@/redux/api/transactionsApi";
@@ -75,7 +76,6 @@ const amountToLabel = (amount: number, type: "credit" | "debit") =>
 export function TransactionNeedCheckInScreen({ navigation, route }: Props) {
   const { transaction } = route.params;
   const existingNeedSelection = transaction.needSelection;
-  const isEditingExisting = Boolean(existingNeedSelection?.key && existingNeedSelection.word);
   const { data: needsFromApi = [] } = useGetNeedsQuery();
   const [updateTransaction, { isLoading: isSaving }] = useUpdateTransactionMutation();
 
@@ -150,17 +150,13 @@ export function TransactionNeedCheckInScreen({ navigation, route }: Props) {
           completedAt: new Date().toISOString(),
         },
       }).unwrap();
-      Toast.show({
-        type: "success",
-        text1: "Transaction updated",
-        text2: "Need check-in saved.",
-      });
       navigation.goBack();
-    } catch {
+    } catch (error) {
+      const apiError = error as { data?: { message?: string }; error?: string };
       Toast.show({
         type: "error",
-        text1: "Save failed",
-        text2: "Could not update this transaction.",
+        text1: "Could not save reflection",
+        text2: apiError?.data?.message || apiError?.error || "Please try again.",
       });
     }
   };
@@ -172,21 +168,22 @@ export function TransactionNeedCheckInScreen({ navigation, route }: Props) {
           <Pressable onPress={() => navigation.goBack()} style={styles.iconButton}>
             <Feather name="x" size={28} color="#E4E4E7" />
           </Pressable>
-          <Pressable style={styles.iconButton}>
-            <Feather name="search" size={24} color="#E4E4E7" />
-          </Pressable>
         </View>
 
         <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
           <Text style={styles.title}>Tap the color that best describes the need this transaction was trying to fulfill</Text>
 
-          <View style={styles.transactionMetaRow}>
-            <View style={styles.metaWrap}>
-              <Text style={styles.merchant}>{transaction.merchant}</Text>
+          <View style={styles.transactionMetaCard}>
+            <View style={styles.transactionMetaLeft}>
+              <View style={styles.categoryIconWrap}>
+                <CategoryIcon name={transaction.categoryName} size={18} color={transaction.needSelection?.color || "#D4D4D8"} />
+              </View>
+              <View style={styles.transactionMetaTextWrap}>
+                <Text numberOfLines={1} style={styles.merchant}>{transaction.merchant.toUpperCase()}</Text>
+                <Text style={styles.accountText}>{(transaction.accountTitle || "ACCOUNT").toUpperCase()}</Text>
+              </View>
             </View>
-            <View style={styles.metaWrap}>
-              <Text style={styles.amount}>{amountToLabel(transaction.amount, transaction.type)}</Text>
-            </View>
+            <Text style={styles.amount}>{amountToLabel(transaction.amount, transaction.type)}</Text>
           </View>
 
           <View style={styles.colorGrid}>
@@ -273,7 +270,7 @@ export function TransactionNeedCheckInScreen({ navigation, route }: Props) {
                 ]}
               >
                 <Text style={styles.completeButtonText}>
-                  {isSaving ? "Saving..." : isEditingExisting ? "Update transaction" : "Complete transaction"}
+                  {isSaving ? "Saving..." : "Save this reflection"}
                 </Text>
               </Pressable>
             </View>
@@ -391,7 +388,7 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     paddingHorizontal: 18,
     paddingTop: 8,
   },
@@ -413,35 +410,59 @@ const styles = StyleSheet.create({
   title: {
     color: "#F4F4F5",
     fontFamily: DISPLAY_FONT_FAMILY,
-    fontSize: 30,
-    lineHeight: 38,
+    fontSize: 24,
+    lineHeight: 32,
     fontWeight: "700",
     textAlign: "center",
   },
   merchant: {
-    color: "#A1A1AA",
-    fontSize: 16,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
+    color: "#F4F4F5",
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   amount: {
     color: "#F4F4F5",
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "800",
   },
-  transactionMetaRow: {
+  transactionMetaCard: {
     marginTop: 14,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(24,24,27,0.52)",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  transactionMetaLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
     gap: 10,
   },
-  metaWrap: {
-    borderRadius: 999,
+  categoryIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(24,24,27,0.45)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  transactionMetaTextWrap: {
+    flex: 1,
+  },
+  accountText: {
+    marginTop: 2,
+    color: "#A1A1AA",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.8,
   },
   colorGrid: {
     marginTop: 24,
@@ -485,8 +506,8 @@ const styles = StyleSheet.create({
   circleText: {
     color: "#0A0A0A",
     fontFamily: DISPLAY_FONT_FAMILY,
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 18,
     textAlign: "center",
     fontWeight: "700",
   },
@@ -496,8 +517,8 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: "#F4F4F5",
     fontFamily: DISPLAY_FONT_FAMILY,
-    fontSize: 27,
-    lineHeight: 31,
+    fontSize: 20,
+    lineHeight: 26,
     fontWeight: "700",
   },
   wordsGrid: {
@@ -518,15 +539,13 @@ const styles = StyleSheet.create({
   },
   wordText: {
     color: "#E4E4E7",
-    fontFamily: DISPLAY_FONT_FAMILY,
-    fontSize: 22,
-    lineHeight: 26,
-    fontWeight: "700",
+    fontSize: 14,
+    lineHeight: 20,
   },
   contextTitle: {
     color: "#F4F4F5",
-    fontSize: 52,
-    lineHeight: 60,
+    fontSize: 20,
+    lineHeight: 26,
     fontFamily: DISPLAY_FONT_FAMILY,
     fontWeight: "700",
   },
@@ -550,8 +569,8 @@ const styles = StyleSheet.create({
   },
   contextChipText: {
     color: "#F4F4F5",
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 14,
+    lineHeight: 20,
   },
   completeButton: {
     marginTop: 28,
@@ -562,8 +581,8 @@ const styles = StyleSheet.create({
   },
   completeButtonText: {
     color: "#0A0A0A",
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 20,
     fontWeight: "800",
   },
 });

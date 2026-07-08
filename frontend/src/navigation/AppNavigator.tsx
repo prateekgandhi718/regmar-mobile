@@ -20,6 +20,8 @@ export type RootStackParamList = {
       type: "credit" | "debit";
       date: string;
       needSelection?: Transaction["needSelection"];
+      categoryName?: string;
+      accountTitle?: string;
     };
   };
 };
@@ -62,7 +64,6 @@ export function AppNavigator() {
               component={TransactionNeedCheckInScreen}
               options={{
                 headerShown: false,
-                animation: "fade_from_bottom",
               }}
             />
           </>

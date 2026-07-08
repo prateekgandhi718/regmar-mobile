@@ -1,7 +1,7 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { baseQuery } from "./baseQuery";
 import type { Domain } from "@/lib/transactions-types";
-import { addLocalAccount, deleteLocalAccount, getLocalAccounts } from "@/lib/accounts-db";
+import { addLocalAccount, deleteLocalAccount, getLocalAccounts, updateLocalAccount } from "@/lib/accounts-db";
 
 export interface Account {
   _id: string;
@@ -13,6 +13,7 @@ export interface Account {
 }
 
 type UpsertAccountPayload = {
+  clientAccountId?: string;
   title: string;
   currency: string;
   domainNames: string[];
@@ -54,6 +55,36 @@ export const accountsApi = createApi({
       },
       invalidatesTags: ["Account"],
     }),
+    updateAccount: builder.mutation<Account, UpsertAccountPayload>({
+      queryFn: async (payload) => {
+        try {
+          if (!payload.clientAccountId) {
+            return { error: { status: 400, data: { message: "Account id is required" } } as never };
+          }
+          if (!payload.title?.trim()) {
+            return { error: { status: 400, data: { message: "Title is required" } } as never };
+          }
+          const domainNames = Array.isArray(payload.domainNames) ? payload.domainNames : [];
+          if (!domainNames.length) {
+            return { error: { status: 400, data: { message: "At least one sender domain/email is required" } } as never };
+          }
+          const data = await updateLocalAccount({
+            clientAccountId: payload.clientAccountId,
+            title: payload.title,
+            currency: payload.currency,
+            domainNames,
+            accountNumber: payload.accountNumber,
+          });
+          if (!data) {
+            return { error: { status: 404, data: { message: "Account not found" } } as never };
+          }
+          return { data };
+        } catch (error) {
+          return { error: { status: "CUSTOM_ERROR", error: (error as Error).message } as never };
+        }
+      },
+      invalidatesTags: ["Account"],
+    }),
     deleteAccount: builder.mutation<{ message: string }, string>({
       queryFn: async (clientAccountId) => {
         try {
@@ -68,4 +99,4 @@ export const accountsApi = createApi({
   }),
 });
 
-export const { useGetAccountsQuery, useAddAccountMutation, useDeleteAccountMutation } = accountsApi;
+export const { useGetAccountsQuery, useAddAccountMutation, useUpdateAccountMutation, useDeleteAccountMutation } = accountsApi;

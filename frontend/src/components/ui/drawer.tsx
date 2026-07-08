@@ -1,8 +1,6 @@
-import { ReactNode, useEffect, useState } from "react";
-import { GlassContainer, GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from "expo-glass-effect";
-import { AccessibilityInfo, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { ReactNode } from "react";
+import { Modal, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useTheme } from "@/components/providers/theme-provider";
 
 type DrawerProps = {
   open: boolean;
@@ -19,23 +17,6 @@ type DrawerTextProps = {
 };
 
 export function Drawer({ open, onOpenChange, children }: DrawerProps) {
-  const { isDark } = useTheme();
-  const [reduceTransparencyEnabled, setReduceTransparencyEnabled] = useState(false);
-
-  useEffect(() => {
-    AccessibilityInfo.isReduceTransparencyEnabled().then(setReduceTransparencyEnabled).catch(() => {
-      setReduceTransparencyEnabled(false);
-    });
-    const subscription = AccessibilityInfo.addEventListener("reduceTransparencyChanged", setReduceTransparencyEnabled);
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-
-  const shouldUseNativeLiquidGlass =
-    isGlassEffectAPIAvailable() && isLiquidGlassAvailable() && !reduceTransparencyEnabled;
-  const colorScheme = isDark ? "dark" : "light";
-
   return (
     <Modal
       animationType="slide"
@@ -46,15 +27,6 @@ export function Drawer({ open, onOpenChange, children }: DrawerProps) {
     >
       <View className="flex-1 justify-end">
         <Pressable className="absolute inset-0" onPress={() => onOpenChange(false)}>
-          {shouldUseNativeLiquidGlass ? (
-            <GlassContainer spacing={8} style={StyleSheet.absoluteFill}>
-              <GlassView
-                style={StyleSheet.absoluteFill}
-                glassEffectStyle={{ style: "clear", animate: true, animationDuration: 0.2 }}
-                colorScheme={colorScheme}
-              />
-            </GlassContainer>
-          ) : null}
           <View className="absolute inset-0 bg-black/15 dark:bg-black/25" />
         </Pressable>
         {children}
