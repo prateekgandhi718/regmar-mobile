@@ -248,6 +248,7 @@ export function AccountSetupGate({
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
             automaticallyAdjustKeyboardInsets
+            contentContainerStyle={styles.drawerScrollContent}
           >
             <DrawerHeader>
               <DrawerTitle>{drawerMode === "edit" ? "Edit Account" : "Add Account"}</DrawerTitle>
@@ -258,9 +259,9 @@ export function AccountSetupGate({
               </DrawerDescription>
             </DrawerHeader>
 
-            <View className="mb-4 gap-3">
-              <View>
-                <Text className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200">Account Name</Text>
+            <View style={styles.drawerForm}>
+              <View style={styles.drawerFieldCard}>
+                <Text style={styles.drawerLabel}>Account Name</Text>
                 <TextInput
                   value={titleInput}
                   onChangeText={(value) => {
@@ -270,30 +271,22 @@ export function AccountSetupGate({
                   autoCapitalize="words"
                   placeholder="HDFC Salary Account"
                   placeholderTextColor="#71717A"
-                  className="rounded-xl border border-zinc-300 bg-white px-3 py-3 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                  style={styles.drawerInput}
                 />
               </View>
 
-              <View>
-                <Text className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200">Currency</Text>
-                <View className="flex-row flex-wrap gap-2">
+              <View style={styles.drawerFieldCard}>
+                <Text style={styles.drawerLabel}>Currency</Text>
+                <View style={styles.currencyWrap}>
                   {CURRENCIES.map((curr) => {
                     const active = curr === currency;
                     return (
                       <Pressable
                         key={curr}
                         onPress={() => setCurrency(curr)}
-                        className="rounded-xl border px-3 py-2"
-                        style={
-                          active
-                            ? { borderColor: colors.primary, backgroundColor: colors.primary }
-                            : { borderColor: withOpacity(colors.primary, 0.35) }
-                        }
+                        style={[styles.currencyChip, active ? styles.currencyChipActive : null]}
                       >
-                        <Text
-                          className="text-xs font-semibold"
-                          style={{ color: active ? colors.onTopOfPrimary : colors.primary }}
-                        >
+                        <Text style={[styles.currencyChipText, active ? styles.currencyChipTextActive : null]}>
                           {curr}
                         </Text>
                       </Pressable>
@@ -302,10 +295,8 @@ export function AccountSetupGate({
                 </View>
               </View>
 
-              <View>
-                <Text className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-                  Account Last 4 Digits
-                </Text>
+              <View style={styles.drawerFieldCard}>
+                <Text style={styles.drawerLabel}>Account Last 4 Digits</Text>
                 <TextInput
                   value={last4Input}
                   onChangeText={(value) => {
@@ -316,14 +307,12 @@ export function AccountSetupGate({
                   maxLength={4}
                   placeholder="1234"
                   placeholderTextColor="#71717A"
-                  className="rounded-xl border border-zinc-300 bg-white px-3 py-3 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                  style={styles.drawerInput}
                 />
               </View>
 
-              <View>
-                <Text className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-                  Sender Domains / Emails
-                </Text>
+              <View style={styles.drawerFieldCard}>
+                <Text style={styles.drawerLabel}>Sender Domains / Emails</Text>
                 <TextInput
                   value={domainInput}
                   onChangeText={(value) => {
@@ -334,41 +323,41 @@ export function AccountSetupGate({
                   autoCorrect={false}
                   placeholder="alerts@hdfcbank.net, noreply@icicibank.com"
                   placeholderTextColor="#71717A"
-                  className="rounded-xl border border-zinc-300 bg-white px-3 py-3 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                  style={styles.drawerInput}
                 />
-                <Text className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                <Text style={styles.drawerHint}>
                   Comma separated. Found {domainCount} sender {domainCount === 1 ? "entry" : "entries"}.
                 </Text>
               </View>
 
-              {formError ? <Text className="text-sm text-red-500">{formError}</Text> : null}
+              {formError ? <Text style={styles.formError}>{formError}</Text> : null}
             </View>
-            <View className="mb-3 flex-row gap-3">
-              <Pressable
-                onPress={handleSaveAccount}
-                disabled={isSaving || isUpdating}
-                className="flex-1 items-center justify-center rounded-xl px-4 py-3"
-                style={{ backgroundColor: isSaving || isUpdating ? withOpacity(colors.primary, 0.45) : colors.primary }}
-              >
-                {isSaving || isUpdating ? (
-                  <ActivityIndicator size="small" color={colors.onTopOfPrimary} />
-                ) : (
-                  <Text className="text-sm font-semibold" style={{ color: colors.onTopOfPrimary }}>
-                    {drawerMode === "edit" ? "Update account" : "Save account"}
-                  </Text>
-                )}
-              </Pressable>
+            <View style={styles.drawerActionRow}>
               <Pressable
                 onPress={() => {
                   setDrawerOpen(false);
                   resetForm();
                 }}
-                className="items-center justify-center rounded-xl border px-4 py-3"
-                style={{ borderColor: withOpacity(colors.primary, 0.35) }}
+                style={[styles.drawerActionButton, styles.drawerCancelButton]}
               >
-                <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
-                  Cancel
-                </Text>
+                <Text style={styles.drawerCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleSaveAccount}
+                disabled={isSaving || isUpdating}
+                style={[
+                  styles.drawerActionButton,
+                  styles.drawerSaveButton,
+                  isSaving || isUpdating ? styles.drawerSaveButtonDisabled : null,
+                ]}
+              >
+                {isSaving || isUpdating ? (
+                  <ActivityIndicator size="small" color="#F4F4F5" />
+                ) : (
+                  <Text style={styles.drawerSaveText}>
+                    {drawerMode === "edit" ? "Update account" : "Save account"}
+                  </Text>
+                )}
               </Pressable>
             </View>
           </ScrollView>
@@ -478,6 +467,107 @@ function InteractiveAccountCard({ account, logoUrl, domainCount, onPress }: Inte
 }
 
 const styles = StyleSheet.create({
+  drawerScrollContent: {
+    paddingBottom: 8,
+  },
+  drawerForm: {
+    marginBottom: 12,
+    gap: 10,
+  },
+  drawerFieldCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "#111114",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  drawerLabel: {
+    color: "#A1A1AA",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  drawerInput: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.16)",
+    backgroundColor: "rgba(9,9,11,0.6)",
+    color: "#F4F4F5",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  drawerHint: {
+    color: "#71717A",
+    fontSize: 11,
+  },
+  currencyWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  currencyChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  currencyChipActive: {
+    borderColor: "rgba(255,255,255,0.38)",
+    backgroundColor: "rgba(255,255,255,0.16)",
+  },
+  currencyChipText: {
+    color: "#D4D4D8",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  currencyChipTextActive: {
+    color: "#F4F4F5",
+  },
+  formError: {
+    color: "#FB7185",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  drawerActionRow: {
+    marginBottom: 4,
+    flexDirection: "row",
+    gap: 10,
+  },
+  drawerActionButton: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  drawerCancelButton: {
+    borderColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(24,24,27,0.9)",
+  },
+  drawerSaveButton: {
+    borderColor: "rgba(255,255,255,0.35)",
+    backgroundColor: "rgba(255,255,255,0.16)",
+  },
+  drawerSaveButtonDisabled: {
+    opacity: 0.72,
+  },
+  drawerCancelText: {
+    color: "#E4E4E7",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  drawerSaveText: {
+    color: "#F4F4F5",
+    fontSize: 13,
+    fontWeight: "800",
+  },
   accountCard: {
     minHeight: 162,
     borderRadius: 30,
