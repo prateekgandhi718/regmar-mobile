@@ -2,6 +2,7 @@ import { createApi } from "@reduxjs/toolkit/query/react";
 import { baseQuery } from "./baseQuery";
 import {
   clearAllTransactionsLocal,
+  createTransactionLocal,
   deleteTransactionLocal,
   getTransactions,
   updateTransactionLocal,
@@ -16,7 +17,35 @@ type UpdateTransactionPayload = {
   refunded?: boolean;
   userType?: "credit" | "debit" | null;
   categoryId?: TransactionCategory | null;
+  accountId?: string;
+  accountMeta?: {
+    _id: string;
+    userId: string;
+    title: string;
+    currency: string;
+    accountNumber?: string;
+    fromEmail?: string;
+  };
   needSelection?: NeedSelection | null;
+};
+
+type CreateTransactionPayload = {
+  clientTxnId: string;
+  description: string;
+  amount: number;
+  date: string;
+  userType: "credit" | "debit";
+  accountId?: string;
+  accountMeta?: {
+    _id: string;
+    userId: string;
+    title: string;
+    currency: string;
+    accountNumber?: string;
+    fromEmail?: string;
+  };
+  refunded?: boolean;
+  categoryId?: TransactionCategory | null;
 };
 
 export const transactionsApi = createApi({
@@ -34,6 +63,20 @@ export const transactionsApi = createApi({
         }
       },
       providesTags: ["Transaction"],
+    }),
+    createTransaction: builder.mutation<Transaction, CreateTransactionPayload>({
+      queryFn: async (payload) => {
+        try {
+          const created = await createTransactionLocal(payload);
+          if (!created) {
+            return { error: { status: "CUSTOM_ERROR", error: "Could not create transaction" } as never };
+          }
+          return { data: created };
+        } catch (error) {
+          return { error: { status: "CUSTOM_ERROR", error: (error as Error).message } as never };
+        }
+      },
+      invalidatesTags: ["Transaction"],
     }),
     updateTransaction: builder.mutation<Transaction, UpdateTransactionPayload>({
       queryFn: async ({ clientTxnId, ...patch }) => {
@@ -76,6 +119,7 @@ export const transactionsApi = createApi({
 
 export const {
   useClearTransactionsMutation,
+  useCreateTransactionMutation,
   useGetTransactionsQuery,
   useUpdateTransactionMutation,
   useDeleteTransactionMutation,

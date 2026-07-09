@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { FiyLogo } from "@/components/fiy-logo";
+import { EditTransactionDrawer } from "@/components/transactions/EditTransactionDrawer";
+import { useTiltPress } from "@/hooks/use-tilt-press";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { useGetTransactionsQuery } from "@/redux/api/transactionsApi";
 import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
@@ -32,8 +35,10 @@ export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { data: transactions = [] } = useGetTransactionsQuery();
   const { width } = useWindowDimensions();
+  const [isRecordDrawerOpen, setIsRecordDrawerOpen] = useState(false);
 
   const rotation = useRef(new Animated.Value(0)).current;
+  const plusPress = useTiltPress({ pressedScale: 0.93, tiltDegrees: 0.8, perspective: 900 });
   const ringSize = Math.max(260, Math.min(340, width - 36));
   const ringStrokeWidth = Math.max(20, Math.min(32, Math.round(ringSize * 0.09)));
   const ringRadius = (ringSize - ringStrokeWidth) / 2;
@@ -63,18 +68,16 @@ export function HomeScreen() {
 
   const metrics = useMemo(() => {
     let totalNeedsLogged = 0;
-    const distinctNeedKeys = new Set<string>();
 
     for (const tx of transactions) {
       if (tx.needSelection?.key) {
         totalNeedsLogged += 1;
-        distinctNeedKeys.add(tx.needSelection.key);
       }
     }
 
     return {
-      needsLogged: distinctNeedKeys.size,
-      totalLogged: totalNeedsLogged,
+      needsLogged: totalNeedsLogged,
+      totalLogged: transactions.length,
     };
   }, [transactions]);
 
@@ -108,15 +111,9 @@ export function HomeScreen() {
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.topBar}>
-          <Pressable
-            onPress={() => navigation.navigate("Settings")}
-            style={styles.settingsButton}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel="Open settings"
-          >
-            <Feather name="settings" size={18} color="#E4E4E7" />
-          </Pressable>
+          <View style={styles.logoWrap}>
+            <FiyLogo size={32} />
+          </View>
 
           <View style={styles.pillsWrap}>
             <View style={styles.pill}>
@@ -127,7 +124,15 @@ export function HomeScreen() {
             </View>
           </View>
 
-          <View style={styles.rightSpacer} />
+          <Pressable
+            onPress={() => navigation.navigate("Settings")}
+            style={styles.settingsButton}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Open settings"
+          >
+            <Feather name="settings" size={18} color="#E4E4E7" />
+          </Pressable>
         </View>
 
         <View style={styles.content}>
@@ -148,12 +153,27 @@ export function HomeScreen() {
               ))}
             </AnimatedSvg>
 
-            <Pressable style={styles.plusButton} disabled accessibilityRole="button" accessibilityLabel="Log transaction button">
-              <Feather name="plus" size={30} color="#09090B" />
+            <Pressable
+              onPress={() => setIsRecordDrawerOpen(true)}
+              onPressIn={plusPress.onPressIn}
+              onPressOut={plusPress.onPressOut}
+              onLayout={plusPress.onLayout}
+              accessibilityRole="button"
+              accessibilityLabel="Record transaction button"
+            >
+              <Animated.View style={[styles.plusButton, plusPress.animatedStyle]}>
+                <Feather name="plus" size={30} color="#09090B" />
+              </Animated.View>
             </Pressable>
           </View>
         </View>
       </View>
+      <EditTransactionDrawer
+        mode="create"
+        transaction={null}
+        open={isRecordDrawerOpen}
+        onClose={() => setIsRecordDrawerOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -204,9 +224,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     fontWeight: "500",
   },
-  rightSpacer: {
+  logoWrap: {
     width: 42,
     height: 42,
+    alignItems: "center",
+    justifyContent: "center",
   },
   content: {
     flex: 1,

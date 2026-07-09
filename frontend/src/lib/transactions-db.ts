@@ -1,5 +1,6 @@
 import * as SQLite from "expo-sqlite";
 import { decryptSensitive, encryptSensitive } from "@/lib/transactions-crypto";
+import { getLocalAccounts } from "@/lib/accounts-db";
 import type { NeedSelection, Transaction, TransactionCategory, TransactionFilter } from "@/lib/transactions-types";
 
 const DB_NAME = "transactions.db";
@@ -314,7 +315,113 @@ type LocalTransactionPatch = {
   refunded?: boolean;
   userType?: "credit" | "debit" | null;
   categoryId?: TransactionCategory | null;
+  accountId?: string;
+  accountMeta?: {
+    _id: string;
+    userId: string;
+    title: string;
+    currency: string;
+    accountNumber?: string;
+    fromEmail?: string;
+  };
   needSelection?: NeedSelection | null;
+};
+
+type LocalCreateTransactionPayload = {
+  clientTxnId: string;
+  description: string;
+  amount: number;
+  date: string;
+  userType: "credit" | "debit";
+  accountId?: string;
+  accountMeta?: {
+    _id: string;
+    userId: string;
+    title: string;
+    currency: string;
+    accountNumber?: string;
+    fromEmail?: string;
+  };
+  categoryId?: TransactionCategory | null;
+  refunded?: boolean;
+};
+
+export const createTransactionLocal = async (payload: LocalCreateTransactionPayload) => {
+  const now = new Date().toISOString();
+  const accounts = await getLocalAccounts();
+  const accountFromPayload = payload.accountMeta
+    ? {
+        _id: payload.accountMeta._id,
+        userId: payload.accountMeta.userId,
+        title: payload.accountMeta.title,
+        currency: payload.accountMeta.currency || "INR",
+        accountNumber: payload.accountMeta.accountNumber,
+        domainIds: payload.accountMeta.fromEmail
+          ? [
+              {
+                _id: "manual-local-domain",
+                userId: payload.accountMeta.userId,
+                accountId: payload.accountMeta._id,
+                fromEmail: payload.accountMeta.fromEmail,
+              },
+            ]
+          : [],
+      }
+    : null;
+  const selectedAccount = payload.accountId ? accounts.find((item) => item._id === payload.accountId) : null;
+  const fallbackAccount = accounts[0] || accountFromPayload;
+  const account = selectedAccount || accountFromPayload || fallbackAccount;
+  const domain = account?.domainIds?.[0];
+
+  const transaction: Transaction = {
+    clientTxnId: payload.clientTxnId,
+    accountId: account
+      ? {
+          _id: account._id,
+          userId: account.userId,
+          title: account.title,
+          currency: account.currency || "INR",
+          accountNumber: account.accountNumber,
+        }
+      : {
+          _id: "manual-local-account",
+          userId: "manual-local-user",
+          title: "Manual Entry",
+          currency: "INR",
+        },
+    domainId: domain
+      ? {
+          _id: domain._id,
+          userId: domain.userId,
+          accountId: domain.accountId,
+          fromEmail: domain.fromEmail,
+        }
+      : {
+          _id: "manual-local-domain",
+          userId: "manual-local-user",
+          accountId: account?._id || "manual-local-account",
+          fromEmail: "manual@local",
+        },
+    userId: account?.userId || "manual-local-user",
+    originalDate: payload.date,
+    newDate: payload.date,
+    originalDescription: payload.description,
+    newDescription: payload.description,
+    originalAmount: payload.amount,
+    newAmount: payload.amount,
+    type: payload.userType,
+    userType: payload.userType,
+    entities: [],
+    correctedEntities: null,
+    refunded: Boolean(payload.refunded),
+    emailBody: "",
+    categoryId: payload.categoryId ?? undefined,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await upsertTransactions([transaction]);
+  return getTransactionById(payload.clientTxnId);
 };
 
 export const updateTransactionLocal = async (
@@ -350,6 +457,55 @@ export const updateTransactionLocal = async (
     params.push(patch.categoryId?._id ?? null);
     updates.push("category_name = ?");
     params.push(patch.categoryId?.name ?? null);
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "accountId") || Object.prototype.hasOwnProperty.call(patch, "accountMeta")) {
+    const accounts = await getLocalAccounts();
+    const accountFromPayload = patch.accountMeta
+      ? {
+          _id: patch.accountMeta._id,
+          userId: patch.accountMeta.userId,
+          title: patch.accountMeta.title,
+          currency: patch.accountMeta.currency || "INR",
+          accountNumber: patch.accountMeta.accountNumber,
+          domainIds: patch.accountMeta.fromEmail
+            ? [
+                {
+                  _id: "manual-local-domain",
+                  userId: patch.accountMeta.userId,
+                  accountId: patch.accountMeta._id,
+                  fromEmail: patch.accountMeta.fromEmail,
+                },
+              ]
+            : [],
+        }
+      : null;
+    const selectedAccount = patch.accountId ? accounts.find((item) => item._id === patch.accountId) : null;
+    const account = selectedAccount || accountFromPayload || accounts[0] || null;
+    const domain = account?.domainIds?.[0] || null;
+
+    if (account) {
+      updates.push("account_json = ?");
+      params.push(
+        JSON.stringify({
+          _id: account._id,
+          userId: account.userId,
+          title: account.title,
+          currency: account.currency || "INR",
+          accountNumber: account.accountNumber,
+        }),
+      );
+      updates.push("user_id = ?");
+      params.push(account.userId || "local");
+      updates.push("domain_json = ?");
+      params.push(
+        JSON.stringify({
+          _id: domain?._id || "manual-local-domain",
+          userId: domain?.userId || account.userId || "local",
+          accountId: domain?.accountId || account._id,
+          fromEmail: domain?.fromEmail || patch.accountMeta?.fromEmail || "manual@local",
+        }),
+      );
+    }
   }
   if (Object.prototype.hasOwnProperty.call(patch, "needSelection")) {
     updates.push("need_key = ?");
