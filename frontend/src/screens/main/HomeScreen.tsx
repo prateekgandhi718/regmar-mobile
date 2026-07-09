@@ -67,16 +67,23 @@ export function HomeScreen() {
   }, [ringRadius, ringSize]);
 
   const metrics = useMemo(() => {
-    const uniqueNeedKeys = new Set<string>();
+    const uniqueNeedWords = new Set<string>();
 
     for (const tx of transactions) {
-      if (tx.needSelection?.key) {
-        uniqueNeedKeys.add(tx.needSelection.key);
+      const selectedWord = tx.needSelection?.word?.trim().toLowerCase();
+      if (selectedWord) {
+        uniqueNeedWords.add(selectedWord);
+        continue;
+      }
+
+      const selectedLabel = tx.needSelection?.label?.trim().toLowerCase();
+      if (selectedLabel) {
+        uniqueNeedWords.add(selectedLabel);
       }
     }
 
     return {
-      uniqueNeeds: uniqueNeedKeys.size,
+      uniqueNeeds: uniqueNeedWords.size,
       totalLogged: transactions.length,
     };
   }, [transactions]);
