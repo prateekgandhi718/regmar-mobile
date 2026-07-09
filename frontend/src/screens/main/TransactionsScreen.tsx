@@ -1,16 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import {
-  ActivityIndicator,
-  Animated,
-  LayoutChangeEvent,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -21,6 +12,7 @@ import { EditTransactionDrawer } from "@/components/transactions/EditTransaction
 import { QuickTagDrawer } from "@/components/transactions/QuickTagDrawer";
 import { TransactionDetailDrawer } from "@/components/transactions/TransactionDetailDrawer";
 import { TransactionsInsights } from "@/components/transactions/TransactionsInsights";
+import { useTiltPress } from "@/hooks/use-tilt-press";
 import {
   formatAmount,
   formatCompactCurrency,
@@ -330,61 +322,10 @@ function TransactionRow({ transaction, onPress, onTagPress }: TransactionRowProp
   const iconChipBorderColor = transaction.needSelection?.color ? hexToRgba(iconColor, 0.48) : "rgba(255,255,255,0.2)";
   const iconChipBackgroundColor = transaction.needSelection?.color ? hexToRgba(iconColor, 0.16) : "rgba(255,255,255,0.08)";
 
-  const scale = useRef(new Animated.Value(1)).current;
-  const tiltX = useRef(new Animated.Value(0)).current;
-  const tiltY = useRef(new Animated.Value(0)).current;
-  const [cardSize, setCardSize] = useState({ width: 1, height: 1 });
-
-  const handleLayout = (event: LayoutChangeEvent) => {
-    const { width, height } = event.nativeEvent.layout;
-    if (width > 0 && height > 0) {
-      setCardSize({ width, height });
-    }
-  };
-
-  const animateReset = () => {
-    Animated.parallel([
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 5 }),
-      Animated.spring(tiltX, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 4 }),
-      Animated.spring(tiltY, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 4 }),
-    ]).start();
-  };
-
-  const animatePressAt = (locationX: number, locationY: number) => {
-    const xRatio = (locationX / cardSize.width - 0.5) * 2;
-    const yRatio = (locationY / cardSize.height - 0.5) * 2;
-    Animated.parallel([
-      Animated.spring(scale, { toValue: 0.988, useNativeDriver: true, speed: 20, bounciness: 4 }),
-      Animated.spring(tiltX, { toValue: -yRatio * 2.2, useNativeDriver: true, speed: 24, bounciness: 3 }),
-      Animated.spring(tiltY, { toValue: xRatio * 2.2, useNativeDriver: true, speed: 24, bounciness: 3 }),
-    ]).start();
-  };
-
-  const handlePressIn = (event: { nativeEvent: { locationX: number; locationY: number } }) => {
-    animatePressAt(event.nativeEvent.locationX, event.nativeEvent.locationY);
-  };
-
-  const animatedStyle = {
-    transform: [
-      { perspective: 900 },
-      {
-        rotateX: tiltX.interpolate({
-          inputRange: [-8, 8],
-          outputRange: ["-8deg", "8deg"],
-        }),
-      },
-      {
-        rotateY: tiltY.interpolate({
-          inputRange: [-8, 8],
-          outputRange: ["-8deg", "8deg"],
-        }),
-      },
-      { scale },
-    ],
-  } as const;
+  const { animatedStyle, onLayout, onPressIn, onPressOut } = useTiltPress();
 
   return (
-    <Pressable onPress={() => onPress(transaction)} onPressIn={handlePressIn} onPressOut={animateReset} onLayout={handleLayout}>
+    <Pressable onPress={() => onPress(transaction)} onPressIn={onPressIn} onPressOut={onPressOut} onLayout={onLayout}>
       <Animated.View style={[styles.transactionRow, animatedStyle]}>
         {transaction.needSelection?.color ? <NeedTintOverlay color={transaction.needSelection.color} /> : null}
         <View style={styles.rowContent}>

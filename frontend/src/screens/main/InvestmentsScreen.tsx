@@ -1,13 +1,27 @@
 import { useMemo, useState } from "react";
 import { Feather } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { LinearGradient } from "expo-linear-gradient";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from "react-native";
+import {
+  ActivityIndicator,
+  Animated,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { LineChart, PieChart, type lineDataItem, type pieDataItem } from "react-native-gifted-charts";
 import Toast from "react-native-toast-message";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { EmailLinkGate } from "@/components/email/EmailLinkGate";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
+import { useTiltPress } from "@/hooks/use-tilt-press";
 import type { HistoricalValuation, InvestmentData } from "@/lib/investments-types";
+import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { isValidPan, sanitizePan } from "@/lib/investments-storage";
 import { useGetLinkedAccountsQuery } from "@/redux/api/linkedAccountsApi";
 import { useGetInvestmentPanQuery, useGetMyInvestmentsQuery, useSaveInvestmentPanMutation } from "@/redux/api/investmentsApi";
@@ -385,31 +399,41 @@ type SummaryCardProps = {
   value: string;
   icon: keyof typeof Feather.glyphMap;
   accentColor: string;
+  onPress?: () => void;
 };
 
-function SummaryCard({ title, subtitle, value, icon, accentColor }: SummaryCardProps) {
+function SummaryCard({ title, subtitle, value, icon, accentColor, onPress }: SummaryCardProps) {
+  const { animatedStyle, onLayout, onPressIn, onPressOut } = useTiltPress();
+
   return (
-    <View className="rounded-[28px] border border-zinc-800 bg-zinc-950 px-5 py-5">
-      <View className="flex-row items-center justify-between">
-        <View className="flex-row items-center gap-4">
-          <View className="h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: withOpacity(accentColor, 0.18) }}>
-            <Feather name={icon} size={22} color={accentColor} />
-          </View>
-          <View>
-            <Text className="text-[18px] font-black tracking-tight text-zinc-100">{title}</Text>
-            <Text className="text-[10px] font-black uppercase tracking-[1.4px] text-zinc-500">{subtitle}</Text>
+    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} onLayout={onLayout}>
+      <Animated.View style={[summaryCardStyles.cardWrap, animatedStyle]}>
+        <View className="rounded-[28px] border border-zinc-800 bg-zinc-950 px-5 py-5">
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center gap-4">
+              <View className="h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: withOpacity(accentColor, 0.18) }}>
+                <Feather name={icon} size={22} color={accentColor} />
+              </View>
+              <View>
+                <Text className="text-[18px] font-black tracking-tight text-zinc-100">{title}</Text>
+                <Text className="text-[10px] font-black uppercase tracking-[1.4px] text-zinc-500">{subtitle}</Text>
+              </View>
+            </View>
+            <View className="items-end">
+              <Text className="text-lg font-black" style={{ color: accentColor }}>
+                {value}
+              </Text>
+            </View>
           </View>
         </View>
-        <Text className="text-lg font-black" style={{ color: accentColor }}>
-          {value}
-        </Text>
-      </View>
-    </View>
+      </Animated.View>
+    </Pressable>
   );
 }
 
 export function InvestmentsScreen() {
   const { colors } = useColorTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [hideValues, setHideValues] = useState(false);
   const [panInput, setPanInput] = useState("");
 
@@ -556,6 +580,7 @@ export function InvestmentsScreen() {
                       value={hideValues ? "••••••" : formatCurrency((summary?.mfFolioValue || 0) + (summary?.mfDematValue || 0))}
                       icon="layers"
                       accentColor={colors.primary}
+                      onPress={() => navigation.navigate("MutualFunds")}
                     />
 
                     <SummaryCard
@@ -564,6 +589,7 @@ export function InvestmentsScreen() {
                       value={hideValues ? "••••••" : formatCurrency(summary?.equityValue || 0)}
                       icon="trending-up"
                       accentColor={colors.primary}
+                      onPress={() => navigation.navigate("Stocks")}
                     />
 
                     <HistoricalGrowthCard data={investments?.historicalValuation || []} hidden={hideValues} lineColor={colors.primary} />
@@ -584,3 +610,13 @@ export function InvestmentsScreen() {
     </SafeAreaView>
   );
 }
+
+const summaryCardStyles = StyleSheet.create({
+  cardWrap: {
+    shadowColor: "#000000",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+  },
+});

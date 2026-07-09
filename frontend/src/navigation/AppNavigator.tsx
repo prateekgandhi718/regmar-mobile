@@ -5,7 +5,9 @@ import type { Transaction } from "@/lib/transactions-types";
 import { useAppSelector } from "@/redux/hooks";
 import { LandingScreen } from "@/screens/auth/LandingScreen";
 import { OnboardingScreen } from "@/screens/auth/OnboardingScreen";
+import { MutualFundsScreen } from "@/screens/main/MutualFundsScreen";
 import { SettingsScreen } from "@/screens/main/SettingsScreen";
+import { StocksScreen } from "@/screens/main/StocksScreen";
 import { TransactionNeedCheckInScreen } from "@/screens/main/TransactionNeedCheckInScreen";
 
 export type RootStackParamList = {
@@ -13,6 +15,8 @@ export type RootStackParamList = {
   Onboarding: undefined;
   MainTabs: undefined;
   Settings: undefined;
+  MutualFunds: undefined;
+  Stocks: undefined;
   TransactionNeedCheckIn: {
     transaction: Pick<Transaction, "clientTxnId"> & {
       merchant: string;
@@ -55,6 +59,20 @@ export function AppNavigator() {
             <Stack.Screen
               name="Settings"
               component={SettingsScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="MutualFunds"
+              component={MutualFundsScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="Stocks"
+              component={StocksScreen}
               options={{
                 headerShown: false,
               }}
