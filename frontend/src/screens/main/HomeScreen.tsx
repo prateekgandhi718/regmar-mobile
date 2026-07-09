@@ -1,74 +1,242 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Pressable, Text, View } from "react-native";
+import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { EmailLinkGate } from "@/components/email/EmailLinkGate";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
-import { useColorTheme } from "@/components/providers/color-theme-provider";
-import { getStoredName } from "@/lib/auth-storage";
+import { useGetTransactionsQuery } from "@/redux/api/transactionsApi";
 import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
+
+const AnimatedSvg = Animated.createAnimatedComponent(Svg);
+const ARC_TAIL_ANGLE = 320;
+const ARC_SWEEP = 286;
+const ARC_SEGMENTS = 140;
+
+const polarToCartesian = (center: number, radius: number, angleInDegrees: number) => {
+  const angleInRadians = (angleInDegrees * Math.PI) / 180;
+  return {
+    x: center + radius * Math.cos(angleInRadians),
+    y: center + radius * Math.sin(angleInRadians),
+  };
+};
+
+const createShortArcPath = (center: number, radius: number, startAngle: number, endAngle: number) => {
+  const start = polarToCartesian(center, radius, startAngle);
+  const end = polarToCartesian(center, radius, endAngle);
+  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 0 0 ${end.x} ${end.y}`;
+};
 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { colors } = useColorTheme();
-  const [name, setName] = useState("User");
+  const { data: transactions = [] } = useGetTransactionsQuery();
+  const { width } = useWindowDimensions();
+
+  const rotation = useRef(new Animated.Value(0)).current;
+  const ringSize = Math.max(260, Math.min(340, width - 36));
+  const ringStrokeWidth = Math.max(20, Math.min(32, Math.round(ringSize * 0.09)));
+  const ringRadius = (ringSize - ringStrokeWidth) / 2;
+  const titleFontSize = Math.max(36, Math.min(56, Math.round(width * 0.12)));
+  const titleLineHeight = titleFontSize + 6;
+  const arcGeometry = useMemo(() => {
+    const center = ringSize / 2;
+
+    const segments = Array.from({ length: ARC_SEGMENTS }, (_, index) => {
+      const t0 = index / ARC_SEGMENTS;
+      const t1 = (index + 1) / ARC_SEGMENTS;
+      const startAngle = ARC_TAIL_ANGLE - ARC_SWEEP * t0;
+      const endAngle = ARC_TAIL_ANGLE - ARC_SWEEP * t1;
+      const alpha = 0.008 + 0.18 * Math.pow(1 - t1, 2.05);
+
+      return {
+        key: `seg-${index}`,
+        d: createShortArcPath(center, ringRadius, startAngle, endAngle),
+        alpha,
+      };
+    });
+
+    return {
+      segments,
+    };
+  }, [ringRadius, ringSize]);
+
+  const metrics = useMemo(() => {
+    let totalNeedsLogged = 0;
+    const distinctNeedKeys = new Set<string>();
+
+    for (const tx of transactions) {
+      if (tx.needSelection?.key) {
+        totalNeedsLogged += 1;
+        distinctNeedKeys.add(tx.needSelection.key);
+      }
+    }
+
+    return {
+      needsLogged: distinctNeedKeys.size,
+      totalLogged: totalNeedsLogged,
+    };
+  }, [transactions]);
 
   useEffect(() => {
-    let active = true;
+    rotation.setValue(0);
+    const loop = Animated.loop(
+      Animated.timing(rotation, {
+        toValue: 1,
+        duration: 22000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
 
-    const loadName = async () => {
-      const storedName = await getStoredName();
-      if (active && storedName?.trim()) {
-        setName(storedName.trim());
-      }
-    };
+    loop.start();
+    return () => loop.stop();
+  }, [rotation]);
 
-    loadName();
-    return () => {
-      active = false;
-    };
-  }, []);
+  const ringSpinStyle = {
+    transform: [
+      {
+        rotate: rotation.interpolate({
+          inputRange: [0, 1],
+          outputRange: ["0deg", "360deg"],
+        }),
+      },
+    ],
+  };
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-zinc-50 dark:bg-zinc-950">
-      <View className="flex-1">
-        <View className="w-full flex-row items-center justify-between px-6 pt-3">
-          <Text
-            className="text-zinc-100"
-            style={{ color: colors.primary, fontSize: 34, lineHeight: 38, fontFamily: DISPLAY_FONT_FAMILY, fontWeight: "700" }}
-          >
-            Home
-          </Text>
+    <SafeAreaView edges={["top"]} style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.topBar}>
           <Pressable
             onPress={() => navigation.navigate("Settings")}
-            className="h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900"
-            hitSlop={8}
+            style={styles.settingsButton}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Open settings"
           >
-            <Feather name="settings" size={18} color={colors.primary} />
+            <Feather name="settings" size={18} color="#E4E4E7" />
           </Pressable>
+
+          <View style={styles.pillsWrap}>
+            <View style={styles.pill}>
+              <Text style={styles.pillText}>{metrics.needsLogged} needs logged</Text>
+            </View>
+            <View style={styles.pill}>
+              <Text style={styles.pillText}>{metrics.totalLogged} total txns</Text>
+            </View>
+          </View>
+
+          <View style={styles.rightSpacer} />
         </View>
 
-        <View className="flex-1 px-6 pb-32 pt-8">
-          <Text className="text-base font-medium text-zinc-600 dark:text-zinc-300">Hello, {name}!</Text>
-          <Text className="mt-2 text-3xl font-black tracking-tight text-zinc-900 dark:text-zinc-50" style={{ color: colors.primary }}>
-            Your Summary
-          </Text>
+        <View style={styles.content}>
+          <Text style={[styles.title, { fontSize: titleFontSize, lineHeight: titleLineHeight }]}>Record a transaction?</Text>
 
-          <EmailLinkGate
-            title="Link your email to get started"
-            description="Connect the inbox where you receive banking alerts to unlock transaction sync and insights."
-          >
-            <View className="mt-8 items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-12 dark:border-zinc-700 dark:bg-zinc-900">
-              <Text className="text-base font-medium text-zinc-700 dark:text-zinc-200">No transactions yet</Text>
-              <Text className="mt-2 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                Your summary will appear here once transaction syncing is enabled.
-              </Text>
-            </View>
-          </EmailLinkGate>
+          <View style={[styles.orbStage, { width: ringSize, height: ringSize }]}>
+            <AnimatedSvg width={ringSize} height={ringSize} style={[styles.ring, ringSpinStyle]}>
+              {arcGeometry.segments.map((segment) => (
+                <Path
+                  key={segment.key}
+                  d={segment.d}
+                  stroke="#E4E4E7"
+                  strokeOpacity={segment.alpha}
+                  strokeWidth={ringStrokeWidth}
+                  strokeLinecap="butt"
+                  fill="none"
+                />
+              ))}
+            </AnimatedSvg>
+
+            <Pressable style={styles.plusButton} disabled accessibilityRole="button" accessibilityLabel="Log transaction button">
+              <Feather name="plus" size={30} color="#09090B" />
+            </Pressable>
+          </View>
         </View>
       </View>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#09090B",
+  },
+  container: {
+    flex: 1,
+    backgroundColor: "#09090B",
+    paddingHorizontal: 18,
+    paddingTop: 10,
+  },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  settingsButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(228,228,231,0.24)",
+    backgroundColor: "rgba(24,24,27,0.74)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pillsWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  pill: {
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    backgroundColor: "rgba(39,39,42,0.94)",
+    borderWidth: 1,
+    borderColor: "rgba(228,228,231,0.12)",
+  },
+  pillText: {
+    color: "#F4F4F5",
+    fontSize: 12,
+    lineHeight: 14,
+    letterSpacing: 0.2,
+    fontWeight: "500",
+  },
+  rightSpacer: {
+    width: 42,
+    height: 42,
+  },
+  content: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: 110,
+  },
+  title: {
+    width: "88%",
+    textAlign: "center",
+    color: "#FAFAFA",
+    fontFamily: DISPLAY_FONT_FAMILY,
+    fontWeight: "700",
+    marginBottom: 56,
+  },
+  orbStage: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ring: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+  },
+  plusButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 999,
+    backgroundColor: "#F4F4F5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
