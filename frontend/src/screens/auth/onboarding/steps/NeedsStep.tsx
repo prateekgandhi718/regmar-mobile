@@ -10,26 +10,36 @@ type NeedsStepProps = {
 };
 
 export function NeedsStep({ transition, bubbles, onContinue }: NeedsStepProps) {
+  const tiledBubbles = [...bubbles, ...bubbles, ...bubbles];
+
   return (
     <SafeAreaView edges={[]} className="flex-1 bg-black">
       <Animated.View style={{ flex: 1, opacity: transition.opacity, transform: [{ translateX: transition.translateX }] }}>
         <View className="absolute inset-0 overflow-hidden">
-          <View className="-left-12 -right-12 -top-10 flex-row flex-wrap" style={{ position: "absolute" }}>
-            {bubbles.map((bubble) => (
+          <View className="-left-16 -right-16 -top-14 flex-row flex-wrap" style={{ position: "absolute" }}>
+            {tiledBubbles.map((bubble, index) => (
               <View
-                key={bubble.label}
+                key={`${bubble.label}-${index}`}
                 className="items-center justify-center rounded-full"
                 style={{
                   width: bubble.size,
                   height: bubble.size,
                   backgroundColor: bubble.color,
-                  marginHorizontal: 9,
-                  marginVertical: 9,
+                  marginHorizontal: 4,
+                  marginVertical: 4,
                 }}
               >
                 <Text
-                  className="px-3 text-center text-[22px] leading-[26px] text-zinc-950"
-                  style={{ fontFamily: DISPLAY_FONT_FAMILY, fontWeight: "700" }}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.64}
+                  className="px-3 text-center text-zinc-950"
+                  style={{
+                    fontFamily: DISPLAY_FONT_FAMILY,
+                    fontWeight: "700",
+                    fontSize: Math.min(22, Math.max(13, bubble.size * 0.17)),
+                    lineHeight: Math.min(24, Math.max(16, bubble.size * 0.2)),
+                  }}
                 >
                   {bubble.label}
                 </Text>

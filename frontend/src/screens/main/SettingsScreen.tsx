@@ -15,13 +15,21 @@ import { logout } from "@/redux/features/authSlice";
 import { useAppDispatch } from "@/redux/hooks";
 import { useDeleteMeMutation } from "@/redux/api/authApi";
 import { accountsApi } from "@/redux/api/accountsApi";
+import { authApi } from "@/redux/api/authApi";
+import { categoriesApi } from "@/redux/api/categoriesApi";
+import { investmentsApi } from "@/redux/api/investmentsApi";
 import {
   LinkedAccountProvider,
   linkedAccountsApi,
   useGetLinkedAccountsQuery,
   useUnlinkAccountMutation,
 } from "@/redux/api/linkedAccountsApi";
+import { needsApi } from "@/redux/api/needsApi";
+import { nerFeedbackApi } from "@/redux/api/nerFeedbackApi";
+import { syncApi } from "@/redux/api/syncApi";
 import { useClearTransactionsMutation } from "@/redux/api/transactionsApi";
+import { transactionsApi } from "@/redux/api/transactionsApi";
+import { txnClassifierApi } from "@/redux/api/txnClassifierApi";
 import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
 
 export function SettingsScreen() {
@@ -84,9 +92,17 @@ export function SettingsScreen() {
                 clearAllTransactionsLocal(),
                 clearAllAccountsLocal(),
               ]);
-              // Clear in-memory RTK query caches so linked-email and account data are removed immediately.
+              // Clear all in-memory RTK query caches so no stale local/cloud data remains visible.
+              dispatch(authApi.util.resetApiState());
+              dispatch(categoriesApi.util.resetApiState());
+              dispatch(investmentsApi.util.resetApiState());
               dispatch(linkedAccountsApi.util.resetApiState());
+              dispatch(needsApi.util.resetApiState());
+              dispatch(nerFeedbackApi.util.resetApiState());
               dispatch(accountsApi.util.resetApiState());
+              dispatch(syncApi.util.resetApiState());
+              dispatch(transactionsApi.util.resetApiState());
+              dispatch(txnClassifierApi.util.resetApiState());
               dispatch(logout());
               Toast.show({
                 type: didDeleteCloudData ? "success" : "info",
