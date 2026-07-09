@@ -7,6 +7,7 @@ import { LandingScreen } from "@/screens/auth/LandingScreen";
 import { OnboardingScreen } from "@/screens/auth/OnboardingScreen";
 import { MutualFundsScreen } from "@/screens/main/MutualFundsScreen";
 import { NeedsLoggedScreen } from "@/screens/main/NeedsLoggedScreen";
+import { EmailCredentialsScreen } from "@/screens/main/EmailCredentialsScreen";
 import { SettingsScreen } from "@/screens/main/SettingsScreen";
 import { StocksScreen } from "@/screens/main/StocksScreen";
 import { TotalTransactionsScreen } from "@/screens/main/TotalTransactionsScreen";
@@ -23,6 +24,11 @@ export type RootStackParamList = {
     totalTransactions: number;
   };
   Settings: undefined;
+  EmailCredentials: {
+    mode: "create" | "edit";
+    provider: "gmail" | "icloud";
+    email?: string;
+  };
   MutualFunds: undefined;
   Stocks: undefined;
   TransactionNeedCheckIn: {
@@ -87,6 +93,15 @@ export function AppNavigator() {
               component={SettingsScreen}
               options={{
                 headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="EmailCredentials"
+              component={EmailCredentialsScreen}
+              options={{
+                headerShown: false,
+                presentation: "fullScreenModal",
+                animation: "slide_from_bottom",
               }}
             />
             <Stack.Screen
