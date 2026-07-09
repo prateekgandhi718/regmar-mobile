@@ -34,11 +34,8 @@ export function IntroStep({ transition, onContinue }: IntroStepProps) {
               className="text-[48px] leading-[56px] text-zinc-50"
               style={{ fontFamily: DISPLAY_FONT_FAMILY, fontWeight: "700" }}
             >
-              How You Feel
-              {"\n"}About Money
-            </Text>
-            <Text className="mt-4 text-base leading-6 text-zinc-300">
-              A calm space to track your finances and understand your relationship with money.
+              Understand your
+              {"\n"}relationship with money
             </Text>
           </View>
         </View>

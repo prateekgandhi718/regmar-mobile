@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Easing, View } from "react-native";
 import { getOrCreateDeviceUuid, saveAuthTokens, setOnboardingCompleted, setStoredName } from "@/lib/auth-storage";
 import { useAddAccountMutation, useGetAccountsQuery } from "@/redux/api/accountsApi";
 import { useRegisterDeviceMutation } from "@/redux/api/authApi";
 import { LinkedAccountProvider, useGetLinkedAccountsQuery, useLinkEmailAccountMutation } from "@/redux/api/linkedAccountsApi";
+import type { NeedMaster } from "@/redux/api/needsApi";
+import { useGetNeedsQuery } from "@/redux/api/needsApi";
 import { setOnboardingComplete, setSession } from "@/redux/features/authSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { InsightsStep } from "./onboarding/steps/InsightsStep";
@@ -18,39 +20,68 @@ import { SetupHiStep } from "./onboarding/steps/SetupHiStep";
 import { SetupNameStep } from "./onboarding/steps/SetupNameStep";
 import type { BubbleNeed, NeedInsight, OnboardingStep } from "./onboarding/types";
 
-const NEED_BUBBLES: BubbleNeed[] = [
-  { label: "Connection", color: "#A0A86A", size: 200 },
-  { label: "Comfort", color: "#4D7EA8", size: 138 },
-  { label: "Freedom", color: "#3D9369", size: 128 },
-  { label: "Security", color: "#9A7740", size: 148 },
-  { label: "Joy", color: "#A24A3D", size: 116 },
-  { label: "Growth", color: "#7D8F40", size: 136 },
-  { label: "Belonging", color: "#5A8C9C", size: 154 },
-  { label: "Peace", color: "#4E956F", size: 126 },
-  { label: "Curiosity", color: "#A9873D", size: 132 },
-  { label: "Rest", color: "#48789C", size: 124 },
-  { label: "Play", color: "#338B66", size: 120 },
-  { label: "Purpose", color: "#8B6E3B", size: 146 },
-  { label: "Care", color: "#8A433A", size: 118 },
-  { label: "Focus", color: "#87A049", size: 100 },
+const NEED_BUBBLE_SIZES = [126, 98, 112, 104, 118, 108, 122, 102, 116, 96, 110, 120, 100, 114, 106, 124];
+const MAX_NEED_BUBBLES = 36;
+
+const ONBOARDING_NEEDS_FALLBACK: Pick<NeedMaster, "key" | "layers" | "sortOrder" | "words">[] = [
+  {
+    key: "protection",
+    layers: ["#D84236", "#FF7A45", "#FF4F67"],
+    sortOrder: 0,
+    words: ["Shelter", "Security", "Emergency", "Stability", "Preparedness", "Assurance", "Care", "Reliability"],
+  },
+  {
+    key: "fuel",
+    layers: ["#D0AF45", "#ECD86A", "#FBC12F"],
+    sortOrder: 1,
+    words: ["Nourishment", "Energy", "Healing", "Recovery", "Hydration", "Strength", "Vitality", "Restoration"],
+  },
+  {
+    key: "connection",
+    layers: ["#6D86D4", "#89B7E9", "#789CF3"],
+    sortOrder: 2,
+    words: ["Belonging", "Status", "Kindness", "Recognition", "Love", "Friendship", "Celebration", "Support"],
+  },
+  {
+    key: "freedom",
+    layers: ["#46BC88", "#7EE2AB", "#5EDAAF"],
+    sortOrder: 3,
+    words: ["Time", "Organized", "Unwinding", "Calm", "Simplicity", "Choice", "Ease", "Autonomy"],
+  },
 ];
 
-const NEED_INSIGHTS: NeedInsight[] = [
-  { label: "Connection", score: 4, color: "#F8C843", width: 250, radii: [4, 0, 0, 20] },
-  { label: "Freedom", score: 3, color: "#F8C843", width: 210, radii: [20, 4, 20, 0] },
-  { label: "Peace", score: 4, color: "#4ADEA7", width: 250, radii: [0, 16, 16, 0] },
-  { label: "Belonging", score: 3, color: "#4ADEA7", width: 210, radii: [16, 0, 0, 16] },
-  { label: "Joy", score: 4, color: "#FF544A", width: 250, radii: [0, 20, 0, 20] },
-  { label: "Comfort", score: 3, color: "#FF544A", width: 210, radii: [20, 0, 20, 0] },
-  { label: "Security", score: 4, color: "#6E97FF", width: 250, radii: [10, 2, 2, 10] },
-  { label: "Purpose", score: 4, color: "#6E97FF", width: 250, radii: [2, 10, 10, 2] },
+const INSIGHT_CARD_STYLES: Array<{ score: number; width: number; radii: readonly [number, number, number, number] }> = [
+  { score: 4, width: 250, radii: [4, 0, 0, 20] },
+  { score: 3, width: 210, radii: [20, 4, 20, 0] },
+  { score: 4, width: 250, radii: [0, 16, 16, 0] },
+  { score: 3, width: 210, radii: [16, 0, 0, 16] },
+  { score: 4, width: 250, radii: [0, 20, 0, 20] },
+  { score: 3, width: 210, radii: [20, 0, 20, 0] },
+  { score: 4, width: 250, radii: [10, 2, 2, 10] },
+  { score: 4, width: 250, radii: [2, 10, 10, 2] },
 ];
+
+const PREFERRED_INSIGHT_WORDS: Record<string, string[]> = {
+  connection: ["Love", "Connection", "Belonging", "Support", "Friendship", "Kindness", "Celebration", "Recognition"],
+  freedom: ["Calm", "Choice", "Ease", "Autonomy", "Time", "Simplicity"],
+  protection: ["Security", "Stability", "Shelter", "Reliability", "Preparedness", "Care"],
+  fuel: ["Energy", "Healing", "Nourishment", "Recovery", "Strength", "Vitality"],
+};
 
 const parseDomainNames = (value: string) =>
   value
     .split(",")
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
+
+const shuffle = <T,>(items: T[]) => {
+  const copy = [...items];
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [copy[index], copy[randomIndex]] = [copy[randomIndex], copy[index]];
+  }
+  return copy;
+};
 
 export function OnboardingScreen() {
   const dispatch = useAppDispatch();
@@ -73,6 +104,7 @@ export function OnboardingScreen() {
   const [registerDevice, { isLoading: isRegisteringDevice }] = useRegisterDeviceMutation();
   const [linkEmailAccount, { isLoading: isLinkingEmail }] = useLinkEmailAccountMutation();
   const [addAccount, { isLoading: isSavingAccount }] = useAddAccountMutation();
+  const { data: needsFromApi = [] } = useGetNeedsQuery();
 
   const { data: linkedAccounts = [], isLoading: isLoadingLinkedAccounts } = useGetLinkedAccountsQuery(undefined, {
     skip: !isAuthenticated,
@@ -85,7 +117,7 @@ export function OnboardingScreen() {
   const transitionOpacity = useRef(new Animated.Value(1)).current;
   const isTransitioningRef = useRef(false);
 
-  const needsProgress = useRef(NEED_INSIGHTS.map(() => new Animated.Value(0))).current;
+  const needsProgress = useRef(INSIGHT_CARD_STYLES.map(() => new Animated.Value(0))).current;
   const insightCopyOpacity = useRef(new Animated.Value(0)).current;
   const insightCopyTranslateY = useRef(new Animated.Value(32)).current;
 
@@ -93,6 +125,95 @@ export function OnboardingScreen() {
   const morphLogoScale = useRef(new Animated.Value(0.54)).current;
   const morphCircleScale = useRef(new Animated.Value(1.8)).current;
   const morphCircleOpacity = useRef(new Animated.Value(1)).current;
+
+  const needsBubbles = useMemo<BubbleNeed[]>(() => {
+    const source = needsFromApi.length ? needsFromApi : ONBOARDING_NEEDS_FALLBACK;
+    const sortedNeeds = [...source].sort((a, b) => a.sortOrder - b.sortOrder);
+    const uniqueWords = new Set<string>();
+    const selectedWords = new Set<string>();
+    const bubbles: BubbleNeed[] = [];
+
+    for (const need of sortedNeeds) {
+      const words = shuffle((need.words || []).map((word) => word.trim()).filter(Boolean));
+      const firstAvailable = words.find((word) => !uniqueWords.has(word.toLowerCase()));
+      if (!firstAvailable) continue;
+
+      const normalized = firstAvailable.toLowerCase();
+      uniqueWords.add(normalized);
+      selectedWords.add(normalized);
+      bubbles.push({
+        label: firstAvailable,
+        color: need.layers[2],
+        size: NEED_BUBBLE_SIZES[bubbles.length % NEED_BUBBLE_SIZES.length],
+      });
+    }
+
+    const remainingPool = shuffle(
+      sortedNeeds.flatMap((need) =>
+        (need.words || [])
+          .map((word) => word.trim())
+          .filter(Boolean)
+          .map((word) => ({ word, color: need.layers[2] })),
+      ),
+    );
+
+    for (const item of remainingPool) {
+      if (bubbles.length >= MAX_NEED_BUBBLES) break;
+      const normalized = item.word.toLowerCase();
+      if (selectedWords.has(normalized)) continue;
+      selectedWords.add(normalized);
+      bubbles.push({
+        label: item.word,
+        color: item.color,
+        size: NEED_BUBBLE_SIZES[bubbles.length % NEED_BUBBLE_SIZES.length],
+      });
+    }
+
+    return bubbles.slice(0, MAX_NEED_BUBBLES);
+  }, [needsFromApi]);
+
+  const needInsights = useMemo<NeedInsight[]>(() => {
+    const source = needsFromApi.length ? needsFromApi : ONBOARDING_NEEDS_FALLBACK;
+    const sortedNeeds = [...source].sort((a, b) => a.sortOrder - b.sortOrder);
+    const selected: Array<{ label: string; color: string }> = [];
+
+    for (const need of sortedNeeds) {
+      const words = (need.words || []).map((word) => word.trim()).filter(Boolean);
+      if (!words.length) continue;
+      const preferred = PREFERRED_INSIGHT_WORDS[need.key] || [];
+      const picked: string[] = [];
+
+      for (const preferredWord of preferred) {
+        const match = words.find((word) => word.toLowerCase() === preferredWord.toLowerCase());
+        if (match && !picked.some((word) => word.toLowerCase() === match.toLowerCase())) {
+          picked.push(match);
+        }
+        if (picked.length === 2) break;
+      }
+
+      for (const word of words) {
+        if (picked.length === 2) break;
+        if (!picked.some((item) => item.toLowerCase() === word.toLowerCase())) {
+          picked.push(word);
+        }
+      }
+
+      for (const label of picked.slice(0, 2)) {
+        selected.push({ label, color: need.layers[2] });
+      }
+    }
+
+    return INSIGHT_CARD_STYLES.map((style, index) => {
+      const fallback = selected[index % Math.max(selected.length, 1)] || { label: "Insight", color: "#6E97FF" };
+      return {
+        label: fallback.label,
+        color: fallback.color,
+        score: style.score,
+        width: style.width,
+        radii: style.radii,
+      };
+    });
+  }, [needsFromApi]);
 
   const animateIntoStep = (next: OnboardingStep) => {
     setStep(next);
@@ -355,17 +476,17 @@ export function OnboardingScreen() {
   }
 
   if (step === "needs") {
-    return <NeedsStep transition={transition} bubbles={NEED_BUBBLES} onContinue={() => transitionToStep("insights")} />;
+    return <NeedsStep transition={transition} bubbles={needsBubbles} onContinue={() => transitionToStep("insights")} />;
   }
 
   if (step === "insights") {
     return (
-      <InsightsStep
-        transition={transition}
-        insights={NEED_INSIGHTS}
-        progressValues={needsProgress}
-        copyOpacity={insightCopyOpacity}
-        copyTranslateY={insightCopyTranslateY}
+        <InsightsStep
+          transition={transition}
+          insights={needInsights}
+          progressValues={needsProgress}
+          copyOpacity={insightCopyOpacity}
+          copyTranslateY={insightCopyTranslateY}
         onContinue={() => transitionToStep("privacy")}
       />
     );

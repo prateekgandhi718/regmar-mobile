@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { LinearGradient } from "expo-linear-gradient";
 import {
   ActivityIndicator,
   Animated,
@@ -61,56 +60,64 @@ function PanGateCard({
   onTopOfPrimary,
 }: PanGateCardProps) {
   return (
-    <View className="overflow-hidden rounded-[32px] border border-zinc-800 bg-zinc-950">
-      <View className="absolute -left-10 -top-8 h-44 w-44 rounded-full" style={{ backgroundColor: withOpacity("#7EA6FF", 0.2) }} />
-      <View className="absolute -right-14 top-24 h-48 w-48 rounded-full" style={{ backgroundColor: withOpacity("#69E3B0", 0.16) }} />
-      <LinearGradient colors={["rgba(24,24,27,0.96)", "rgba(9,9,11,1)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <View className="px-6 pb-6 pt-7">
-          <View className="h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: withOpacity("#7EA6FF", 0.24) }}>
-            <Feather name="shield" size={24} color="#DDE7FF" />
-          </View>
+    <View className="rounded-[28px] border border-zinc-800 bg-zinc-950 px-5 py-6">
+      <View className="h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: withOpacity(primaryColor, 0.2) }}>
+        <Feather name="shield" size={20} color={primaryColor} />
+      </View>
 
-          <Text className="mt-5 text-zinc-50" style={{ fontFamily: DISPLAY_FONT_FAMILY, fontSize: 34, lineHeight: 38, fontWeight: "700" }}>
-            Unlock your{"\n"}Portfolio
+      <Text className="mt-4 text-zinc-50" style={{ fontFamily: DISPLAY_FONT_FAMILY, fontSize: 42, lineHeight: 48, fontWeight: "700" }}>
+        Unlock your portfolio
+      </Text>
+
+      <Text className="mt-3 text-base leading-7 text-zinc-300">
+        Add your PAN to decrypt and read your CAS statements. We only parse what is needed for your summary.
+      </Text>
+
+      <View className="mt-5">
+        <Text className="mb-2 text-[13px] text-zinc-300">PAN</Text>
+        <TextInput
+          value={currentPan}
+          onChangeText={onPanChange}
+          placeholder="ABCDE1234F"
+          placeholderTextColor="#71717A"
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={10}
+          style={{
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: "rgba(228,228,231,0.16)",
+            backgroundColor: "rgba(24,24,27,0.94)",
+            color: "#F4F4F5",
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            fontSize: 28,
+            fontWeight: "800",
+            textAlign: "center",
+            letterSpacing: 1.5,
+          }}
+        />
+        <Text className="mt-2 text-xs text-zinc-500">Format: 5 letters, 4 digits, 1 letter (for example: ABCDE1234F)</Text>
+      </View>
+
+      <View className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-900/50 px-4 py-4">
+        <Text className="text-sm leading-6 text-zinc-400">Your PAN and parsed investment data stay stored on this phone only.</Text>
+      </View>
+
+      <Pressable
+        onPress={onSave}
+        disabled={isSavingPan || !panValid}
+        className="mt-5 items-center rounded-2xl px-4 py-4"
+        style={{ backgroundColor: panValid ? primaryColor : withOpacity(primaryColor, 0.35) }}
+      >
+        {isSavingPan ? (
+          <ActivityIndicator size="small" color={onTopOfPrimary} />
+        ) : (
+          <Text className="text-lg font-semibold" style={{ color: onTopOfPrimary }}>
+            Save & Continue
           </Text>
-
-          <Text className="mt-4 text-[15px] leading-6 text-zinc-300">
-            Add your PAN to decrypt and read your CAS statements. We only parse what is needed for your summary.
-          </Text>
-          <Text className="mt-2 text-[13px] leading-5 text-zinc-400">
-            Your PAN and parsed investment data stay stored on this phone only.
-          </Text>
-
-          <View className="mt-6 rounded-3xl border border-zinc-700 bg-black/60 px-4 py-4">
-            <Text className="text-[11px] font-black uppercase tracking-[1.6px] text-zinc-500">PAN</Text>
-            <TextInput
-              value={currentPan}
-              onChangeText={onPanChange}
-              placeholder="ABCDE1234F"
-              placeholderTextColor="#71717A"
-              autoCapitalize="characters"
-              autoCorrect={false}
-              maxLength={10}
-              className="mt-2 text-right text-[30px] font-black tracking-[2px] text-zinc-100"
-            />
-          </View>
-
-          <Pressable
-            onPress={onSave}
-            disabled={isSavingPan || !panValid}
-            className="mt-5 items-center rounded-2xl px-4 py-4"
-            style={{ backgroundColor: panValid ? primaryColor : withOpacity(primaryColor, 0.35) }}
-          >
-            {isSavingPan ? (
-              <ActivityIndicator size="small" color={onTopOfPrimary} />
-            ) : (
-              <Text className="text-sm font-black uppercase tracking-[1px]" style={{ color: onTopOfPrimary }}>
-                Save & Continue
-              </Text>
-            )}
-          </Pressable>
-        </View>
-      </LinearGradient>
+        )}
+      </Pressable>
     </View>
   );
 }
