@@ -5,10 +5,11 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { LinearGradient } from "expo-linear-gradient";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { getStockLogoUrl } from "@/lib/investment-logos";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
-import { useGetMyInvestmentsQuery } from "@/redux/api/investmentsApi";
+import { useGetMyInvestmentsQuery, useOptimizeUltimatePortfolioMutation } from "@/redux/api/investmentsApi";
 import { withOpacity } from "@/theme/color-theme";
 import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
 
@@ -52,6 +53,7 @@ function StockCard({
     marketPrice: number;
     currentValue: number;
     currentPercentage: number;
+    optimizedPercentage?: number;
   };
 }) {
   const [logoError, setLogoError] = useState(false);
@@ -84,7 +86,13 @@ function StockCard({
               {!stock.isEtf && stock.currentPercentage > 0 ? (
                 <View style={styles.badge}>
                   <Feather name="pie-chart" size={10} color="#A1A1AA" />
-                  <Text style={styles.badgeText}>{stock.currentPercentage.toFixed(2)}%</Text>
+                  <Text style={styles.badgeText}>Current {stock.currentPercentage.toFixed(2)}%</Text>
+                </View>
+              ) : null}
+              {!stock.isEtf && stock.optimizedPercentage !== undefined ? (
+                <View style={styles.badgeRecommended}>
+                  <Feather name="target" size={10} color="#9AE6B4" />
+                  <Text style={styles.badgeRecommendedText}>Suggested {stock.optimizedPercentage.toFixed(2)}%</Text>
                 </View>
               ) : null}
             </View>
@@ -106,6 +114,7 @@ export function StocksScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { colors } = useColorTheme();
   const { data, isLoading } = useGetMyInvestmentsQuery();
+  const [optimizePortfolio, { data: optimizedData, isLoading: isOptimizing }] = useOptimizeUltimatePortfolioMutation();
 
   const stocks = data?.stocks || [];
 
@@ -115,6 +124,34 @@ export function StocksScreen() {
     const stockCount = stocks.length - etfCount;
     return { total, etfCount, stockCount };
   }, [stocks]);
+
+  const handleOptimize = async () => {
+    const tickers = stocks.filter((stock) => !stock.isEtf && !!stock.ticker).map((stock) => stock.ticker);
+    if (tickers.length === 0) {
+      Toast.show({
+        type: "info",
+        text1: "No stocks to optimize",
+        text2: "Optimization is available for non-ETF stocks.",
+      });
+      return;
+    }
+
+    try {
+      await optimizePortfolio({ tickers }).unwrap();
+      Toast.show({
+        type: "success",
+        text1: "Optimization ready",
+        text2: "Suggested allocations have been updated.",
+      });
+    } catch (error) {
+      const apiError = error as { data?: { message?: string }; error?: string };
+      Toast.show({
+        type: "error",
+        text1: "Optimization failed",
+        text2: apiError?.data?.message || apiError?.error || "Please try again.",
+      });
+    }
+  };
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-black">
@@ -143,6 +180,23 @@ export function StocksScreen() {
           </View>
         ) : (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            <View style={styles.actionRow}>
+              <Pressable
+                onPress={handleOptimize}
+                disabled={isOptimizing}
+                style={[styles.optimizeButton, isOptimizing ? styles.optimizeButtonDisabled : null]}
+              >
+                <View style={styles.optimizeButtonContent}>
+                  {isOptimizing ? (
+                    <ActivityIndicator size="small" color="#D4D4D8" />
+                  ) : (
+                    <Feather name="zap" size={14} color="#D4D4D8" />
+                  )}
+                  <Text style={styles.optimizeButtonText}>{optimizedData ? "Re-optimize Portfolio" : "Optimize Portfolio"}</Text>
+                </View>
+              </Pressable>
+            </View>
+
             <View style={styles.summaryShell}>
               <View style={styles.summaryGlowA} />
               <View style={styles.summaryGlowB} />
@@ -164,6 +218,29 @@ export function StocksScreen() {
               </LinearGradient>
             </View>
 
+            {optimizedData?.metrics ? (
+              <View style={styles.metricsOverviewGrid}>
+                <View style={styles.metricsOverviewCard}>
+                  <Text style={styles.metricsOverviewLabel}>Expected Return</Text>
+                  <Text style={[styles.metricsOverviewValue, { color: colors.primary }]}>
+                    {(optimizedData.metrics.expectedAnnualReturn * 100).toFixed(2)}%
+                  </Text>
+                </View>
+                <View style={styles.metricsOverviewCard}>
+                  <Text style={styles.metricsOverviewLabel}>Volatility</Text>
+                  <Text style={[styles.metricsOverviewValue, { color: colors.primary }]}>
+                    {(optimizedData.metrics.annualVolatility * 100).toFixed(2)}%
+                  </Text>
+                </View>
+                <View style={styles.metricsOverviewCard}>
+                  <Text style={styles.metricsOverviewLabel}>Sharpe Ratio</Text>
+                  <Text style={[styles.metricsOverviewValue, { color: colors.primary }]}>
+                    {optimizedData.metrics.sharpeRatio.toFixed(2)}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
             {stocks.map((stock) => (
               <StockCard
                 key={stock.isin}
@@ -176,6 +253,7 @@ export function StocksScreen() {
                   marketPrice: stock.marketPrice,
                   currentValue: stock.currentValue,
                   currentPercentage: stock.currentPercentage,
+                  optimizedPercentage: optimizedData?.allocations?.[stock.ticker],
                 }}
               />
             ))}
@@ -258,6 +336,32 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 140,
     gap: 14,
+  },
+  actionRow: {
+    alignItems: "center",
+  },
+  optimizeButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.16)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  optimizeButtonDisabled: {
+    opacity: 0.7,
+  },
+  optimizeButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  optimizeButtonText: {
+    color: "#D4D4D8",
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   summaryShell: {
     overflow: "hidden",
@@ -412,6 +516,24 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
+  badgeRecommended: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(74, 222, 128, 0.4)",
+    backgroundColor: "rgba(74, 222, 128, 0.08)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  badgeRecommendedText: {
+    color: "#86EFAC",
+    fontSize: 10,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
   metricsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -440,5 +562,32 @@ const styles = StyleSheet.create({
   },
   metricHighlight: {
     color: "#F4F4F5",
+  },
+  metricsOverviewGrid: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  metricsOverviewCard: {
+    flex: 1,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.13)",
+    backgroundColor: "#101014",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 6,
+  },
+  metricsOverviewLabel: {
+    color: "#71717A",
+    fontSize: 9,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.9,
+  },
+  metricsOverviewValue: {
+    fontSize: 15,
+    lineHeight: 18,
+    fontWeight: "900",
+    letterSpacing: 0.2,
   },
 });
