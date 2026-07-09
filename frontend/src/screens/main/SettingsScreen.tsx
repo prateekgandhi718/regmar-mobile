@@ -2,11 +2,10 @@ import { useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
-import { EmailLinkGate } from "@/components/email/EmailLinkGate";
 import { clearAllAccountsLocal } from "@/lib/accounts-db";
 import { clearAllAuthLocalStorage } from "@/lib/auth-storage";
 import { clearInvestmentStorage } from "@/lib/investments-storage";
@@ -16,17 +15,26 @@ import { logout } from "@/redux/features/authSlice";
 import { useAppDispatch } from "@/redux/hooks";
 import { useDeleteMeMutation } from "@/redux/api/authApi";
 import { accountsApi } from "@/redux/api/accountsApi";
-import { linkedAccountsApi } from "@/redux/api/linkedAccountsApi";
+import {
+  LinkedAccountProvider,
+  linkedAccountsApi,
+  useGetLinkedAccountsQuery,
+  useUnlinkAccountMutation,
+} from "@/redux/api/linkedAccountsApi";
 import { useClearTransactionsMutation } from "@/redux/api/transactionsApi";
-import { withOpacity } from "@/theme/color-theme";
+import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
 
 export function SettingsScreen() {
   const dispatch = useAppDispatch();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useColorTheme();
+  const { data: linkedAccounts = [], isLoading: isLoadingLinkedAccounts } = useGetLinkedAccountsQuery();
   const [clearTransactions, { isLoading: isClearingTransactions }] = useClearTransactionsMutation();
+  const [unlinkAccount, { isLoading: isUnlinkingAccount }] = useUnlinkAccountMutation();
   const [deleteMe] = useDeleteMeMutation();
   const [isResettingAppData, setIsResettingAppData] = useState(false);
+  const linkedEmailAccount = linkedAccounts.find((account) => account.isActive);
+  const linkedProvider: LinkedAccountProvider = linkedEmailAccount?.provider === "icloud" ? "icloud" : "gmail";
 
   const handleClearTransactions = () => {
     if (isClearingTransactions) return;
@@ -97,69 +105,272 @@ export function SettingsScreen() {
     );
   };
 
+  const handleUnlink = () => {
+    if (!linkedEmailAccount || isUnlinkingAccount) return;
+
+    Alert.alert("Unlink email account?", "This will disable email sync until you reconnect.", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Unlink",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await unlinkAccount(linkedEmailAccount.id).unwrap();
+            Toast.show({
+              type: "success",
+              text1: "Email unlinked",
+              text2: "You can reconnect anytime from settings.",
+            });
+          } catch (error) {
+            const apiError = error as { data?: { message?: string } };
+            Toast.show({
+              type: "error",
+              text1: "Could not unlink account",
+              text2: apiError?.data?.message || "Please try again.",
+            });
+          }
+        },
+      },
+    ]);
+  };
+
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-zinc-50 dark:bg-zinc-950">
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-        <View className="w-full flex-row items-center justify-between px-6 pt-3">
-          <View className="flex-row items-center gap-2">
-            <Pressable
-              onPress={() => navigation.goBack()}
-              className="h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900"
-              hitSlop={8}
-            >
-              <Feather name="chevron-left" size={20} color={colors.primary} />
+    <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.headerRow}>
+          <View style={styles.headerLeft}>
+            <Pressable onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={8}>
+              <Feather name="arrow-left" size={18} color="#E4E4E7" />
             </Pressable>
-            <Text className="text-xl font-semibold text-zinc-900 dark:text-zinc-100" style={{ color: colors.primary }}>
-              SETTINGS
-            </Text>
+            <Text style={[styles.headerTitle, { color: colors.primary }]}>Settings</Text>
           </View>
         </View>
 
-        <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 180 }}
-          keyboardShouldPersistTaps="handled"
-        >
-          <EmailLinkGate
-            title="Link the email"
-            description="Connect your inbox here to enable transaction, accounts, and investment sync across the app."
-            showLinkedStateWhenLinked
-          >
-            <></>
-          </EmailLinkGate>
-
-          <View className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <View className="flex-row items-center gap-2">
-              <Feather name="trash-2" size={16} color={colors.secondary} />
-              <Text className="text-base font-bold text-zinc-900 dark:text-zinc-100">Local Transaction Data</Text>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          {isLoadingLinkedAccounts ? (
+            <View style={styles.card}>
+              <View style={styles.loadingRow}>
+                <ActivityIndicator size="small" color="#D4D4D8" />
+                <Text style={styles.loadingText}>Checking linked account...</Text>
+              </View>
             </View>
-            <Text className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-              Clear local transactions to test sync flow from a clean state.
-            </Text>
-            <Pressable
-              onPress={handleClearTransactions}
-              disabled={isClearingTransactions}
-              className="mt-4 items-center justify-center rounded-xl border px-4 py-3"
-              style={{ borderColor: withOpacity(colors.secondary, 0.45), backgroundColor: withOpacity(colors.secondary, 0.12) }}
-            >
-              <Text className="text-sm font-semibold" style={{ color: colors.secondary }}>
-                {isClearingTransactions ? "Clearing..." : "Clear transactions"}
-              </Text>
+          ) : linkedEmailAccount ? (
+            <View style={styles.card}>
+              <View style={styles.cardHeaderRow}>
+                <Text style={styles.cardTitle}>Linked Email</Text>
+                <View style={styles.activeChip}>
+                  <Text style={styles.activeChipText}>Active</Text>
+                </View>
+              </View>
+
+              <Text style={styles.emailValue}>{linkedEmailAccount.email}</Text>
+              <Text style={styles.providerText}>Provider: {linkedProvider === "icloud" ? "iCloud" : "Gmail"}</Text>
+
+              <View style={styles.actionRow}>
+                <Pressable
+                  onPress={() =>
+                    navigation.navigate("EmailCredentials", {
+                      mode: "edit",
+                      provider: linkedProvider,
+                      email: linkedEmailAccount.email,
+                    })
+                  }
+                  style={styles.button}
+                >
+                  <Text style={styles.buttonText}>Edit credentials</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleUnlink}
+                  disabled={isUnlinkingAccount}
+                  style={styles.button}
+                >
+                  {isUnlinkingAccount ? (
+                    <ActivityIndicator size="small" color="#E4E4E7" />
+                  ) : (
+                    <Text style={styles.buttonText}>Unlink email</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>No email linked</Text>
+              <Text style={styles.cardDescription}>Choose a provider and connect your mailbox with an app password.</Text>
+
+              <View style={styles.actionRow}>
+                <Pressable
+                  onPress={() =>
+                    navigation.navigate("EmailCredentials", {
+                      mode: "create",
+                      provider: "gmail",
+                    })
+                  }
+                  style={styles.button}
+                >
+                  <Text style={styles.buttonText}>Link Gmail</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() =>
+                    navigation.navigate("EmailCredentials", {
+                      mode: "create",
+                      provider: "icloud",
+                    })
+                  }
+                  style={styles.button}
+                >
+                  <Text style={styles.buttonText}>Link iCloud</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Data Controls</Text>
+            <Text style={styles.cardDescription}>Use these actions for local sync testing or full reset when onboarding again.</Text>
+
+            <Pressable onPress={handleClearTransactions} disabled={isClearingTransactions} style={styles.button}>
+              <Text style={styles.buttonText}>{isClearingTransactions ? "Clearing..." : "Clear transactions"}</Text>
             </Pressable>
 
-            <Pressable
-              onPress={handleResetAppData}
-              disabled={isResettingAppData}
-              className="mt-3 items-center justify-center rounded-xl border px-4 py-3"
-              style={{ borderColor: withOpacity(colors.primary, 0.45), backgroundColor: withOpacity(colors.primary, 0.12) }}
-            >
-              <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
-                {isResettingAppData ? "Resetting..." : "Reset app data"}
-              </Text>
+            <Pressable onPress={handleResetAppData} disabled={isResettingAppData} style={[styles.button, { marginTop: 10 }]}>
+              <Text style={styles.buttonText}>{isResettingAppData ? "Resetting..." : "Reset app data"}</Text>
             </Pressable>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#09090B",
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    backgroundColor: "#09090B",
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(228,228,231,0.24)",
+    backgroundColor: "rgba(24,24,27,0.74)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontFamily: DISPLAY_FONT_FAMILY,
+    fontSize: 34,
+    lineHeight: 38,
+    fontWeight: "700",
+  },
+  scrollContent: {
+    paddingBottom: 44,
+    paddingTop: 14,
+    gap: 12,
+  },
+  card: {
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "rgba(228,228,231,0.12)",
+    backgroundColor: "rgba(24,24,27,0.72)",
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+  },
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  loadingText: {
+    color: "#D4D4D8",
+    fontSize: 14,
+  },
+  cardHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  cardHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  cardTitle: {
+    color: "#FAFAFA",
+    fontFamily: DISPLAY_FONT_FAMILY,
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: "700",
+  },
+  activeChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(228,228,231,0.2)",
+    backgroundColor: "rgba(39,39,42,0.86)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  activeChipText: {
+    color: "#E4E4E7",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  emailValue: {
+    marginTop: 10,
+    color: "#FAFAFA",
+    fontSize: 18,
+    fontWeight: "500",
+  },
+  providerText: {
+    marginTop: 4,
+    color: "#B4B4BC",
+    fontSize: 14,
+  },
+  cardDescription: {
+    marginTop: 8,
+    color: "#C4C4CC",
+    fontSize: 15,
+    lineHeight: 24,
+  },
+  actionRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    gap: 10,
+  },
+  button: {
+    flex: 1,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(228,228,231,0.32)",
+    backgroundColor: "rgba(39,39,42,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 13,
+  },
+  buttonText: {
+    color: "#E4E4E7",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+});

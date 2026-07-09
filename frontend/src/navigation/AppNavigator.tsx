@@ -5,14 +5,32 @@ import type { Transaction } from "@/lib/transactions-types";
 import { useAppSelector } from "@/redux/hooks";
 import { LandingScreen } from "@/screens/auth/LandingScreen";
 import { OnboardingScreen } from "@/screens/auth/OnboardingScreen";
+import { MutualFundsScreen } from "@/screens/main/MutualFundsScreen";
+import { NeedsLoggedScreen } from "@/screens/main/NeedsLoggedScreen";
+import { EmailCredentialsScreen } from "@/screens/main/EmailCredentialsScreen";
 import { SettingsScreen } from "@/screens/main/SettingsScreen";
+import { StocksScreen } from "@/screens/main/StocksScreen";
+import { TotalTransactionsScreen } from "@/screens/main/TotalTransactionsScreen";
 import { TransactionNeedCheckInScreen } from "@/screens/main/TransactionNeedCheckInScreen";
 
 export type RootStackParamList = {
   Landing: undefined;
   Onboarding: undefined;
   MainTabs: undefined;
+  NeedsLogged: {
+    uniqueNeeds: number;
+  };
+  TotalTransactions: {
+    totalTransactions: number;
+  };
   Settings: undefined;
+  EmailCredentials: {
+    mode: "create" | "edit";
+    provider: "gmail" | "icloud";
+    email?: string;
+  };
+  MutualFunds: undefined;
+  Stocks: undefined;
   TransactionNeedCheckIn: {
     transaction: Pick<Transaction, "clientTxnId"> & {
       merchant: string;
@@ -53,8 +71,49 @@ export function AppNavigator() {
               }}
             />
             <Stack.Screen
+              name="NeedsLogged"
+              component={NeedsLoggedScreen}
+              options={{
+                headerShown: false,
+                presentation: "fullScreenModal",
+                animation: "slide_from_bottom",
+              }}
+            />
+            <Stack.Screen
+              name="TotalTransactions"
+              component={TotalTransactionsScreen}
+              options={{
+                headerShown: false,
+                presentation: "fullScreenModal",
+                animation: "slide_from_bottom",
+              }}
+            />
+            <Stack.Screen
               name="Settings"
               component={SettingsScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="EmailCredentials"
+              component={EmailCredentialsScreen}
+              options={{
+                headerShown: false,
+                presentation: "fullScreenModal",
+                animation: "slide_from_bottom",
+              }}
+            />
+            <Stack.Screen
+              name="MutualFunds"
+              component={MutualFundsScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="Stocks"
+              component={StocksScreen}
               options={{
                 headerShown: false,
               }}
