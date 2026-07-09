@@ -6,14 +6,22 @@ import { useAppSelector } from "@/redux/hooks";
 import { LandingScreen } from "@/screens/auth/LandingScreen";
 import { OnboardingScreen } from "@/screens/auth/OnboardingScreen";
 import { MutualFundsScreen } from "@/screens/main/MutualFundsScreen";
+import { NeedsLoggedScreen } from "@/screens/main/NeedsLoggedScreen";
 import { SettingsScreen } from "@/screens/main/SettingsScreen";
 import { StocksScreen } from "@/screens/main/StocksScreen";
+import { TotalTransactionsScreen } from "@/screens/main/TotalTransactionsScreen";
 import { TransactionNeedCheckInScreen } from "@/screens/main/TransactionNeedCheckInScreen";
 
 export type RootStackParamList = {
   Landing: undefined;
   Onboarding: undefined;
   MainTabs: undefined;
+  NeedsLogged: {
+    uniqueNeeds: number;
+  };
+  TotalTransactions: {
+    totalTransactions: number;
+  };
   Settings: undefined;
   MutualFunds: undefined;
   Stocks: undefined;
@@ -54,6 +62,24 @@ export function AppNavigator() {
               component={MainTabsNavigator}
               options={{
                 headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="NeedsLogged"
+              component={NeedsLoggedScreen}
+              options={{
+                headerShown: false,
+                presentation: "fullScreenModal",
+                animation: "slide_from_bottom",
+              }}
+            />
+            <Stack.Screen
+              name="TotalTransactions"
+              component={TotalTransactionsScreen}
+              options={{
+                headerShown: false,
+                presentation: "fullScreenModal",
+                animation: "slide_from_bottom",
               }}
             />
             <Stack.Screen

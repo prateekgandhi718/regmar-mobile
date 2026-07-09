@@ -67,16 +67,16 @@ export function HomeScreen() {
   }, [ringRadius, ringSize]);
 
   const metrics = useMemo(() => {
-    let totalNeedsLogged = 0;
+    const uniqueNeedKeys = new Set<string>();
 
     for (const tx of transactions) {
       if (tx.needSelection?.key) {
-        totalNeedsLogged += 1;
+        uniqueNeedKeys.add(tx.needSelection.key);
       }
     }
 
     return {
-      needsLogged: totalNeedsLogged,
+      uniqueNeeds: uniqueNeedKeys.size,
       totalLogged: transactions.length,
     };
   }, [transactions]);
@@ -116,12 +116,22 @@ export function HomeScreen() {
           </View>
 
           <View style={styles.pillsWrap}>
-            <View style={styles.pill}>
-              <Text style={styles.pillText}>{metrics.needsLogged} needs logged</Text>
-            </View>
-            <View style={styles.pill}>
+            <Pressable
+              onPress={() => navigation.navigate("NeedsLogged", { uniqueNeeds: metrics.uniqueNeeds })}
+              style={styles.pill}
+              accessibilityRole="button"
+              accessibilityLabel="View unique needs details"
+            >
+              <Text style={styles.pillText}>{metrics.uniqueNeeds} unique needs</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => navigation.navigate("TotalTransactions", { totalTransactions: metrics.totalLogged })}
+              style={styles.pill}
+              accessibilityRole="button"
+              accessibilityLabel="View total transactions details"
+            >
               <Text style={styles.pillText}>{metrics.totalLogged} total txns</Text>
-            </View>
+            </Pressable>
           </View>
 
           <Pressable
