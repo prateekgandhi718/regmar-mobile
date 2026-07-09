@@ -113,8 +113,9 @@ function HistoricalGrowthCard({ data, hidden, lineColor }: HistoricalGrowthCardP
 
   if (hidden) {
     return (
-      <View className="rounded-[28px] border border-zinc-800 bg-zinc-950 px-5 py-7">
-        <Text className="text-xs font-black uppercase tracking-[1.5px] text-zinc-500">Chart hidden for privacy</Text>
+      <View className="rounded-[28px] border border-zinc-800 bg-zinc-950 px-5 py-6">
+        <Text className="text-xs font-black uppercase tracking-[1.5px] text-zinc-500">Portfolio Growth</Text>
+        <Text className="mt-4 text-xs font-black uppercase tracking-[1.5px] text-zinc-500">Chart hidden for privacy</Text>
       </View>
     );
   }
@@ -494,7 +495,7 @@ export function InvestmentsScreen() {
           ) : null}
         </View>
 
-        <View className="flex-1 px-6 pb-32 pt-6">
+        <View className="flex-1 px-6 pt-6">
           <EmailLinkGate
             title="Link email to keep investments in sync"
             description="Connect your inbox to fetch latest CAS statements whenever you sync this tab."
@@ -519,7 +520,7 @@ export function InvestmentsScreen() {
                 />
               </View>
             ) : (
-              <ScrollView className="mt-2" showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 16, paddingBottom: 24 }}>
+              <ScrollView className="mt-2" showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 16, paddingBottom: 140 }}>
                 <View className="rounded-[28px] border border-zinc-800 bg-zinc-950 p-5">
                   {!!investments?.statementPeriod && (
                     <Text className="text-[10px] font-black uppercase tracking-[1.5px] text-zinc-500">
