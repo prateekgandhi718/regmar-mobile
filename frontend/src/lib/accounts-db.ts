@@ -204,7 +204,7 @@ export const updateLocalAccount = async (
   const normalizedTitle = payload.title.trim();
   const normalizedDomains = payload.domainNames.map(normalizeDomain).filter(Boolean);
 
-  if (!normalizedTitle || !normalizedDomains.length) {
+  if (!normalizedTitle) {
     return null;
   }
 

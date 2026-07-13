@@ -9,8 +9,7 @@ export type OnboardingStep =
   | "setupHi"
   | "setupName"
   | "setupEmailProvider"
-  | "setupEmailCredentials"
-  | "setupAccount";
+  | "setupEmailCredentials";
 
 export type BubbleNeed = {
   label: string;

@@ -27,7 +27,7 @@ import {
 import type { Transaction } from "@/lib/transactions-types";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { useGetAccountsQuery } from "@/redux/api/accountsApi";
-import { useGetLinkedAccountsQuery } from "@/redux/api/linkedAccountsApi";
+import { isLinkedAccountActive, useGetLinkedAccountsQuery } from "@/redux/api/linkedAccountsApi";
 import { useSyncTransactionsMutation } from "@/redux/api/syncApi";
 import { useGetTransactionsQuery } from "@/redux/api/transactionsApi";
 import { withOpacity } from "@/theme/color-theme";
@@ -79,7 +79,7 @@ export function TransactionsScreen() {
   const [isTransactionDrawerOpen, setIsTransactionDrawerOpen] = useState(false);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
 
-  const isEmailLinked = linkedAccounts?.some((acc) => acc.isActive);
+  const isEmailLinked = linkedAccounts?.some((acc) => isLinkedAccountActive(acc.isActive));
   const hasAccountWithDomain = accounts.some((acc) => Array.isArray(acc.domainIds) && acc.domainIds.length > 0);
 
   const groupedTransactions = useMemo<MonthGroup[]>(() => {
@@ -215,20 +215,10 @@ export function TransactionsScreen() {
                 <Text className="text-sm text-zinc-300">Loading transactions...</Text>
               </View>
             </View>
-          ) : !isEmailLinked ? (
-            <View style={styles.infoCard}>
-              <Text style={styles.infoTitle}>Email not linked</Text>
-              <Text style={styles.infoDescription}>Link your inbox in onboarding/settings to sync transactions.</Text>
-            </View>
-          ) : !hasAccountWithDomain ? (
-            <View style={styles.infoCard}>
-              <Text style={styles.infoTitle}>Account setup pending</Text>
-              <Text style={styles.infoDescription}>Add at least one account with sender domains to enable syncing.</Text>
-            </View>
           ) : groupedTransactions.length === 0 ? (
             <View style={styles.infoCard}>
               <Text style={styles.infoTitle}>No transactions yet</Text>
-              <Text style={styles.infoDescription}>Tap Sync to pull your latest transactions.</Text>
+              <Text style={styles.infoDescription}>Record one from Home to get started.</Text>
             </View>
           ) : (
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>

@@ -1,3 +1,4 @@
+import { Feather } from "@expo/vector-icons";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Toast from "react-native-toast-message";
@@ -71,6 +72,10 @@ export function TransactionDetailDrawer({
     year: "numeric",
   });
   const bankLogoUrl = getBankLogoUrl(transaction.domainId?.fromEmail);
+  const isManualEntry =
+    transaction.accountId?._id === "manual-local-account" ||
+    transaction.domainId?.fromEmail === "manual@local" ||
+    transaction.accountId?.title?.toLowerCase() === "manual entry";
 
   const handleDelete = async () => {
     try {
@@ -152,7 +157,9 @@ export function TransactionDetailDrawer({
             <Text style={styles.infoLabel}>ACCOUNT</Text>
             <View style={styles.categoryRow}>
               <View style={styles.smallCategoryIcon}>
-                {bankLogoUrl ? (
+                {isManualEntry ? (
+                  <Feather name="edit-3" size={16} color="#D4D4D8" />
+                ) : bankLogoUrl ? (
                   <Image source={{ uri: bankLogoUrl }} style={styles.bankLogo} resizeMode="contain" />
                 ) : (
                   <Text style={styles.bankFallback}>{transaction.accountId?.title?.charAt(0).toUpperCase() || "B"}</Text>

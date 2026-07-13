@@ -19,6 +19,7 @@ import { authApi } from "@/redux/api/authApi";
 import { categoriesApi } from "@/redux/api/categoriesApi";
 import { investmentsApi } from "@/redux/api/investmentsApi";
 import {
+  isLinkedAccountActive,
   LinkedAccountProvider,
   linkedAccountsApi,
   useGetLinkedAccountsQuery,
@@ -41,7 +42,7 @@ export function SettingsScreen() {
   const [unlinkAccount, { isLoading: isUnlinkingAccount }] = useUnlinkAccountMutation();
   const [deleteMe] = useDeleteMeMutation();
   const [isResettingAppData, setIsResettingAppData] = useState(false);
-  const linkedEmailAccount = linkedAccounts.find((account) => account.isActive);
+  const linkedEmailAccount = linkedAccounts.find((account) => isLinkedAccountActive(account.isActive));
   const linkedProvider: LinkedAccountProvider = linkedEmailAccount?.provider === "icloud" ? "icloud" : "gmail";
 
   const handleClearTransactions = () => {

@@ -10,6 +10,9 @@ export interface LinkedAccount {
 
 export type LinkedAccountProvider = "gmail" | "icloud";
 
+export const isLinkedAccountActive = (value: unknown) =>
+  value === true || value === "true" || value === 1 || value === "1";
+
 type LinkEmailAccountResponse = {
   message: string;
   linkedAccount: LinkedAccount;

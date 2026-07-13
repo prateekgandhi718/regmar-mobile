@@ -8,7 +8,7 @@ import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { getBankLogoUrl } from "@/lib/bank-logos";
 import type { MainTabParamList } from "@/navigation/MainTabsNavigator";
-import { useAddAccountMutation, useGetAccountsQuery, useUpdateAccountMutation } from "@/redux/api/accountsApi";
+import { useAddAccountMutation, useDeleteAccountMutation, useGetAccountsQuery, useUpdateAccountMutation } from "@/redux/api/accountsApi";
 import type { Account } from "@/redux/api/accountsApi";
 import { withOpacity } from "@/theme/color-theme";
 import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
@@ -50,6 +50,7 @@ export function AccountSetupGate({
   const { data: accounts = [], isLoading: isLoadingAccounts } = useGetAccountsQuery();
   const [addAccount, { isLoading: isSaving }] = useAddAccountMutation();
   const [updateAccount, { isLoading: isUpdating }] = useUpdateAccountMutation();
+  const [deleteAccount, { isLoading: isDeletingAccount }] = useDeleteAccountMutation();
 
   const hasAccounts = accounts.length > 0;
   const shouldShowPrompt = !hasAccounts;
@@ -95,10 +96,6 @@ export function AccountSetupGate({
       setFormError("Account name is required.");
       return;
     }
-    if (!domainNames.length) {
-      setFormError("Add at least one sender domain/email.");
-      return;
-    }
 
     try {
       const response = await addAccount({
@@ -133,10 +130,6 @@ export function AccountSetupGate({
         setFormError("Account name is required.");
         return;
       }
-      if (!domainNames.length) {
-        setFormError("Add at least one sender domain/email.");
-        return;
-      }
       if (!editingAccountId) {
         setFormError("Account not found.");
         return;
@@ -168,6 +161,27 @@ export function AccountSetupGate({
       return;
     }
     await handleCreateAccount();
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!editingAccountId || isDeletingAccount) return;
+    if (isDeletingAccount) return;
+    try {
+      await deleteAccount(editingAccountId).unwrap();
+      Toast.show({
+        type: "success",
+        text1: "Account deleted",
+      });
+      setDrawerOpen(false);
+      resetForm();
+    } catch (error) {
+      const apiError = error as { data?: { message?: string } };
+      Toast.show({
+        type: "error",
+        text1: "Could not delete account",
+        text2: apiError?.data?.message || "Please try again.",
+      });
+    }
   };
 
   const cardPrompt = (
@@ -254,8 +268,8 @@ export function AccountSetupGate({
               <DrawerTitle>{drawerMode === "edit" ? "Edit Account" : "Add Account"}</DrawerTitle>
               <DrawerDescription>
                 {drawerMode === "edit"
-                  ? "Update account details and sender domains."
-                  : "Create a sync-ready account with currency and sender domains."}
+                  ? "Update account details. Sender domains are optional."
+                  : "Create an account now; you can add sender domains later for sync."}
               </DrawerDescription>
             </DrawerHeader>
 
@@ -312,7 +326,7 @@ export function AccountSetupGate({
               </View>
 
               <View style={styles.drawerFieldCard}>
-                <Text style={styles.drawerLabel}>Sender Domains / Emails</Text>
+                <Text style={styles.drawerLabel}>Sender Domains / Emails (Optional)</Text>
                 <TextInput
                   value={domainInput}
                   onChangeText={(value) => {
@@ -326,13 +340,28 @@ export function AccountSetupGate({
                   style={styles.drawerInput}
                 />
                 <Text style={styles.drawerHint}>
-                  Comma separated. Found {domainCount} sender {domainCount === 1 ? "entry" : "entries"}.
+                  Comma separated. Found {domainCount} sender {domainCount === 1 ? "entry" : "entries"}. Leave blank for manual-only account.
                 </Text>
               </View>
 
               {formError ? <Text style={styles.formError}>{formError}</Text> : null}
             </View>
             <View style={styles.drawerActionRow}>
+              {drawerMode === "edit" ? (
+                <Pressable
+                  onPress={handleDeleteAccount}
+                  disabled={isDeletingAccount}
+                  style={[styles.drawerActionButton, styles.drawerDeleteButton]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete account"
+                >
+                  {isDeletingAccount ? (
+                    <ActivityIndicator size="small" color="#FCA5A5" />
+                  ) : (
+                    <Feather name="trash-2" size={15} color="#FCA5A5" />
+                  )}
+                </Pressable>
+              ) : null}
               <Pressable
                 onPress={() => {
                   setDrawerOpen(false);
@@ -540,18 +569,25 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   drawerActionButton: {
-    flex: 1,
+    minWidth: 56,
     borderRadius: 14,
     borderWidth: 1,
     paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center",
   },
+  drawerDeleteButton: {
+    borderColor: "rgba(248,113,113,0.35)",
+    backgroundColor: "rgba(127,29,29,0.28)",
+    paddingHorizontal: 14,
+  },
   drawerCancelButton: {
+    flex: 1,
     borderColor: "rgba(255,255,255,0.2)",
     backgroundColor: "rgba(24,24,27,0.9)",
   },
   drawerSaveButton: {
+    flex: 1,
     borderColor: "rgba(255,255,255,0.35)",
     backgroundColor: "rgba(255,255,255,0.16)",
   },

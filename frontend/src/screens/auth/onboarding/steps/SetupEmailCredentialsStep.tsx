@@ -14,6 +14,7 @@ type SetupEmailCredentialsStepProps = {
   error: string | null;
   isLoading?: boolean;
   onBack?: () => void;
+  onSkip?: () => void;
   onEmailChange: (value: string) => void;
   onAppPasswordChange: (value: string) => void;
   onContinue: () => void;
@@ -40,6 +41,7 @@ export function SetupEmailCredentialsStep({
   error,
   isLoading = false,
   onBack,
+  onSkip,
   onEmailChange,
   onAppPasswordChange,
   onContinue,
@@ -49,7 +51,7 @@ export function SetupEmailCredentialsStep({
   return (
     <SafeAreaView edges={[]} className="flex-1 bg-black px-6 pb-8 pt-16">
       <Animated.View style={{ flex: 1, opacity: transition.opacity, transform: [{ translateX: transition.translateX }] }}>
-        <SetupProgressHeader current={3} total={4} onBack={onBack} />
+        <SetupProgressHeader current={3} total={3} onBack={onBack} />
 
         <View className="mt-8">
           <Text
@@ -116,6 +118,12 @@ export function SetupEmailCredentialsStep({
         </View>
 
         {!!error ? <Text className="mt-3 text-sm text-red-400">{error}</Text> : null}
+
+        {onSkip ? (
+          <Pressable onPress={onSkip} className="mt-3 self-center px-3 py-1" hitSlop={6}>
+            <Text className="text-xs text-zinc-500">Skip for now</Text>
+          </Pressable>
+        ) : null}
 
         <Pressable
           onPress={onContinue}
