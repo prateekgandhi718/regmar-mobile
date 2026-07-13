@@ -51,7 +51,7 @@ export function SetupEmailCredentialsStep({
   return (
     <SafeAreaView edges={[]} className="flex-1 bg-black px-6 pb-8 pt-16">
       <Animated.View style={{ flex: 1, opacity: transition.opacity, transform: [{ translateX: transition.translateX }] }}>
-        <SetupProgressHeader current={3} total={3} onBack={onBack} />
+        <SetupProgressHeader current={3} total={4} onBack={onBack} />
 
         <View className="mt-8">
           <Text

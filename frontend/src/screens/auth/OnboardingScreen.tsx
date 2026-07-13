@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Easing, View } from "react-native";
 import { getOrCreateDeviceUuid, saveAuthTokens, setOnboardingCompleted, setStoredName } from "@/lib/auth-storage";
+import { useAddAccountMutation, useGetAccountsQuery } from "@/redux/api/accountsApi";
 import { useRegisterDeviceMutation } from "@/redux/api/authApi";
 import {
   isLinkedAccountActive,
@@ -17,6 +18,7 @@ import { IntroStep } from "./onboarding/steps/IntroStep";
 import { LogoMorphStep } from "./onboarding/steps/LogoMorphStep";
 import { NeedsStep } from "./onboarding/steps/NeedsStep";
 import { PrivacyStep } from "./onboarding/steps/PrivacyStep";
+import { SetupAccountStep } from "./onboarding/steps/SetupAccountStep";
 import { SetupEmailCredentialsStep } from "./onboarding/steps/SetupEmailCredentialsStep";
 import { SetupEmailProviderStep } from "./onboarding/steps/SetupEmailProviderStep";
 import { SetupHiStep } from "./onboarding/steps/SetupHiStep";
@@ -71,6 +73,12 @@ const PREFERRED_INSIGHT_WORDS: Record<string, string[]> = {
   fuel: ["Energy", "Healing", "Nourishment", "Recovery", "Strength", "Vitality"],
 };
 
+const parseDomainNames = (value: string) =>
+  value
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+
 const shuffle = <T,>(items: T[]) => {
   const copy = [...items];
   for (let index = copy.length - 1; index > 0; index -= 1) {
@@ -92,12 +100,20 @@ export function OnboardingScreen() {
   const [email, setEmail] = useState("");
   const [appPassword, setAppPassword] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [bankName, setBankName] = useState("");
+  const [bankDomains, setBankDomains] = useState("");
+  const [bankLast4, setBankLast4] = useState("");
+  const [bankError, setBankError] = useState<string | null>(null);
 
   const [registerDevice, { isLoading: isRegisteringDevice }] = useRegisterDeviceMutation();
   const [linkEmailAccount, { isLoading: isLinkingEmail }] = useLinkEmailAccountMutation();
+  const [addAccount, { isLoading: isSavingAccount }] = useAddAccountMutation();
   const { data: needsFromApi = [] } = useGetNeedsQuery();
 
   const { data: linkedAccounts = [], isLoading: isLoadingLinkedAccounts } = useGetLinkedAccountsQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const { data: accounts = [], isLoading: isLoadingAccounts } = useGetAccountsQuery(undefined, {
     skip: !isAuthenticated,
   });
   const transitionX = useRef(new Animated.Value(0)).current;
@@ -326,18 +342,25 @@ export function OnboardingScreen() {
   };
 
   useEffect(() => {
-    if (!isAuthenticated || isLoadingLinkedAccounts) return;
+    if (!isAuthenticated || isLoadingLinkedAccounts || isLoadingAccounts) return;
 
     const hasLinkedEmail = linkedAccounts.some((account) => isLinkedAccountActive(account.isActive));
-    if (hasLinkedEmail && step !== "setupEmailProvider" && step !== "setupEmailCredentials") {
+    const hasAccount = accounts.length > 0;
+
+    if (hasLinkedEmail && hasAccount && step !== "setupAccount") {
       void completeOnboarding();
       return;
     }
 
-    if (!hasLinkedEmail && step !== "setupEmailProvider" && step !== "setupEmailCredentials") {
+    if (hasLinkedEmail && !hasAccount && step !== "setupAccount") {
+      animateIntoStep("setupAccount");
+      return;
+    }
+
+    if (!hasLinkedEmail && step !== "setupEmailProvider" && step !== "setupEmailCredentials" && step !== "setupAccount") {
       animateIntoStep("setupEmailProvider");
     }
-  }, [isAuthenticated, isLoadingLinkedAccounts, linkedAccounts, step]);
+  }, [accounts.length, isAuthenticated, isLoadingAccounts, isLoadingLinkedAccounts, linkedAccounts, step]);
 
   const handleRegisterAndContinue = async () => {
     const trimmedName = name.trim();
@@ -396,7 +419,7 @@ export function OnboardingScreen() {
         email: normalizedEmail,
         appPassword: normalizedPassword,
       }).unwrap();
-      await completeOnboarding();
+      animateIntoStep("setupAccount");
     } catch (requestError) {
       const apiError = requestError as { data?: { message?: string } };
       setEmailError(apiError?.data?.message || "Unable to connect to your mailbox. Check your credentials.");
@@ -408,9 +431,40 @@ export function OnboardingScreen() {
     await completeOnboarding();
   };
 
+  const handleSaveAccount = async () => {
+    const normalizedTitle = bankName.trim();
+    const domainNames = parseDomainNames(bankDomains);
+    const normalizedLast4 = bankLast4.trim();
+
+    if (!normalizedTitle) {
+      setBankError("Bank name is required.");
+      return;
+    }
+
+    if (normalizedLast4 && !/^\d{4}$/.test(normalizedLast4)) {
+      setBankError("Last 4 digits must be exactly 4 numbers.");
+      return;
+    }
+
+    setBankError(null);
+
+    try {
+      await addAccount({
+        title: normalizedTitle,
+        currency: "INR",
+        domainNames,
+        accountNumber: normalizedLast4 || undefined,
+      }).unwrap();
+      await completeOnboarding();
+    } catch (requestError) {
+      const apiError = requestError as { data?: { message?: string } };
+      setBankError(apiError?.data?.message || "Could not create account.");
+    }
+  };
+
   const transition = { opacity: transitionOpacity, translateX: transitionX };
 
-  if (isAuthenticated && isLoadingLinkedAccounts) {
+  if (isAuthenticated && (isLoadingLinkedAccounts || isLoadingAccounts)) {
     return (
       <View className="flex-1 items-center justify-center bg-black">
         <ActivityIndicator color="#F4F4F5" />
@@ -507,6 +561,32 @@ export function OnboardingScreen() {
         }}
         onSkip={handleSkipEmailLinking}
         onContinue={handleLinkEmailAndContinue}
+      />
+    );
+  }
+
+  if (step === "setupAccount") {
+    return (
+      <SetupAccountStep
+        transition={transition}
+        bankName={bankName}
+        domains={bankDomains}
+        last4={bankLast4}
+        error={bankError}
+        isSaving={isSavingAccount}
+        onBankNameChange={(value) => {
+          setBankName(value);
+          if (bankError) setBankError(null);
+        }}
+        onDomainsChange={(value) => {
+          setBankDomains(value);
+          if (bankError) setBankError(null);
+        }}
+        onLast4Change={(value) => {
+          setBankLast4(value.replace(/\D+/g, "").slice(0, 4));
+          if (bankError) setBankError(null);
+        }}
+        onSave={handleSaveAccount}
       />
     );
   }
