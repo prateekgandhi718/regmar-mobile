@@ -37,6 +37,10 @@ type AccountOption = {
   fromEmail?: string;
 };
 
+const MANUAL_ENTRY_ACCOUNT_ID = "manual-entry";
+const LEGACY_MANUAL_ACCOUNT_ID = "manual-local-account";
+const LEGACY_MANUAL_EMAIL = "manual@local";
+
 export function EditTransactionDrawer({ transaction, open, onClose, mode = "edit" }: EditTransactionDrawerProps) {
   const { data: categories = [] } = useGetCategoriesQuery();
   const { data: accounts = [] } = useGetAccountsQuery();
@@ -67,7 +71,15 @@ export function EditTransactionDrawer({ transaction, open, onClose, mode = "edit
   const accountOptions = useMemo<AccountOption[]>(() => {
     const map = new Map<string, AccountOption>();
 
+    map.set(MANUAL_ENTRY_ACCOUNT_ID, {
+      id: MANUAL_ENTRY_ACCOUNT_ID,
+      userId: "manual-local-user",
+      title: "Manual entry",
+      currency: "INR",
+    });
+
     for (const account of accounts) {
+      if (account._id === LEGACY_MANUAL_ACCOUNT_ID) continue;
       map.set(account._id, {
         id: account._id,
         userId: account.userId,
@@ -80,6 +92,8 @@ export function EditTransactionDrawer({ transaction, open, onClose, mode = "edit
 
     for (const tx of transactions) {
       if (!tx.accountId?._id) continue;
+      if (tx.accountId._id === MANUAL_ENTRY_ACCOUNT_ID || tx.accountId._id === LEGACY_MANUAL_ACCOUNT_ID) continue;
+      if (tx.domainId?.fromEmail === LEGACY_MANUAL_EMAIL) continue;
       if (map.has(tx.accountId._id)) continue;
       map.set(tx.accountId._id, {
         id: tx.accountId._id,
@@ -118,26 +132,33 @@ export function EditTransactionDrawer({ transaction, open, onClose, mode = "edit
 
     if (!transaction) return;
 
+    const isLegacyManualTransaction =
+      transaction.accountId?._id === LEGACY_MANUAL_ACCOUNT_ID || transaction.domainId?.fromEmail === LEGACY_MANUAL_EMAIL;
+    const defaultAccountId =
+      isLegacyManualTransaction || !transaction.accountId?._id
+        ? MANUAL_ENTRY_ACCOUNT_ID
+        : transaction.accountId._id;
+
     setDescription(getMerchantName(transaction));
     setDateTimeValue(effectiveDate);
     setAmountInput(`${isDebit ? "" : "-"}${effectiveAmount}`);
     setRefunded(Boolean(transaction.refunded));
     setSelectedCategoryId(transaction.categoryId?._id || null);
-    setSelectedAccountId(transaction.accountId?._id || accountOptions[0]?.id || null);
+    setSelectedAccountId(defaultAccountId);
     setIsAccountDropdownOpen(false);
     setPickerMode(null);
   }, [transaction, open, effectiveDate, effectiveAmount, isDebit, isCreateMode, accountOptions]);
 
   useEffect(() => {
-    if (!isCreateMode || !open) return;
+    if (!open) return;
     if (!selectedAccountId && accountOptions.length) {
       setSelectedAccountId(accountOptions[0].id);
       return;
     }
     if (selectedAccountId && !accountOptions.some((item) => item.id === selectedAccountId)) {
-      setSelectedAccountId(accountOptions[0]?.id || null);
+      setSelectedAccountId(MANUAL_ENTRY_ACCOUNT_ID);
     }
-  }, [isCreateMode, open, selectedAccountId, accountOptions]);
+  }, [open, selectedAccountId, accountOptions]);
 
   useEffect(() => {
     if (pickerMode) {
@@ -195,6 +216,7 @@ export function EditTransactionDrawer({ transaction, open, onClose, mode = "edit
     const isCredit = parsedValue < 0;
     const absoluteAmount = Math.abs(parsedValue);
     const selectedCategory = categories.find((item) => item._id === selectedCategoryId);
+    const isManualEntry = selectedAccount?.id === MANUAL_ENTRY_ACCOUNT_ID;
 
     if (isCreateMode && !selectedAccount) {
       Toast.show({
@@ -213,8 +235,8 @@ export function EditTransactionDrawer({ transaction, open, onClose, mode = "edit
           amount: absoluteAmount,
           date: dateTimeValue.toISOString(),
           userType: isCredit ? "credit" : "debit",
-          accountId: selectedAccountId || undefined,
-          accountMeta: selectedAccount
+          accountId: !isManualEntry ? selectedAccountId || undefined : undefined,
+          accountMeta: selectedAccount && !isManualEntry
             ? {
                 _id: selectedAccount.id,
                 userId: selectedAccount.userId,
@@ -239,8 +261,8 @@ export function EditTransactionDrawer({ transaction, open, onClose, mode = "edit
           newDate: dateTimeValue.toISOString(),
           userType: isCredit ? "credit" : "debit",
           refunded,
-          accountId: selectedAccountId || undefined,
-          accountMeta: selectedAccount
+          accountId: !isManualEntry ? selectedAccountId || undefined : undefined,
+          accountMeta: selectedAccount && !isManualEntry
             ? {
                 _id: selectedAccount.id,
                 userId: selectedAccount.userId,
@@ -356,7 +378,7 @@ export function EditTransactionDrawer({ transaction, open, onClose, mode = "edit
                     </View>
                     <Text style={styles.accountPickerText} numberOfLines={1}>
                       {selectedAccount
-                        ? `${selectedAccount.title}${selectedAccount.accountNumber ? ` (${selectedAccount.accountNumber.slice(-4)})` : ""}`
+                        ? `${selectedAccount.title}${selectedAccount.accountNumber && selectedAccount.id !== MANUAL_ENTRY_ACCOUNT_ID ? ` (${selectedAccount.accountNumber.slice(-4)})` : ""}`
                         : "No accounts available"}
                     </Text>
                   </View>
@@ -386,7 +408,7 @@ export function EditTransactionDrawer({ transaction, open, onClose, mode = "edit
                           </View>
                           <Text style={styles.accountOptionText} numberOfLines={1}>
                             {account.title}
-                            {account.accountNumber ? ` (${account.accountNumber.slice(-4)})` : ""}
+                            {account.accountNumber && account.id !== MANUAL_ENTRY_ACCOUNT_ID ? ` (${account.accountNumber.slice(-4)})` : ""}
                           </Text>
                           {isSelected ? <Feather name="check" size={16} color="#F4F4F5" /> : null}
                         </Pressable>

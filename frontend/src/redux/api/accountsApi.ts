@@ -44,9 +44,6 @@ export const accountsApi = createApi({
             return { error: { status: 400, data: { message: "Title is required" } } as never };
           }
           const domainNames = Array.isArray(payload.domainNames) ? payload.domainNames : [];
-          if (!domainNames.length) {
-            return { error: { status: 400, data: { message: "At least one sender domain/email is required" } } as never };
-          }
           const data = await addLocalAccount(payload);
           return { data };
         } catch (error) {
@@ -65,9 +62,6 @@ export const accountsApi = createApi({
             return { error: { status: 400, data: { message: "Title is required" } } as never };
           }
           const domainNames = Array.isArray(payload.domainNames) ? payload.domainNames : [];
-          if (!domainNames.length) {
-            return { error: { status: 400, data: { message: "At least one sender domain/email is required" } } as never };
-          }
           const data = await updateLocalAccount({
             clientAccountId: payload.clientAccountId,
             title: payload.title,

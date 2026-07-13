@@ -9,10 +9,11 @@ import type { StepTransitionStyle } from "../types";
 type SetupEmailProviderStepProps = {
   transition: StepTransitionStyle;
   onBack?: () => void;
+  onSkip?: () => void;
   onSelectProvider: (provider: LinkedAccountProvider) => void;
 };
 
-export function SetupEmailProviderStep({ transition, onBack, onSelectProvider }: SetupEmailProviderStepProps) {
+export function SetupEmailProviderStep({ transition, onBack, onSkip, onSelectProvider }: SetupEmailProviderStepProps) {
   return (
     <SafeAreaView edges={[]} className="flex-1 bg-black px-6 pb-8 pt-16">
       <Animated.View style={{ flex: 1, opacity: transition.opacity, transform: [{ translateX: transition.translateX }] }}>
@@ -32,6 +33,11 @@ export function SetupEmailProviderStep({ transition, onBack, onSelectProvider }:
             <Text className="mt-4 text-lg leading-8 text-zinc-300">
               Choose your email provider. You&apos;ll connect it securely using an app password.
             </Text>
+            {onSkip ? (
+              <Pressable onPress={onSkip} className="mt-2 self-start py-1" hitSlop={6}>
+                <Text className="text-xs text-zinc-500">Skip for now</Text>
+              </Pressable>
+            ) : null}
           </View>
 
           <View className="mt-10 gap-4">

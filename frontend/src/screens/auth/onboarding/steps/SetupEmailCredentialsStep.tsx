@@ -14,6 +14,7 @@ type SetupEmailCredentialsStepProps = {
   error: string | null;
   isLoading?: boolean;
   onBack?: () => void;
+  onSkip?: () => void;
   onEmailChange: (value: string) => void;
   onAppPasswordChange: (value: string) => void;
   onContinue: () => void;
@@ -40,6 +41,7 @@ export function SetupEmailCredentialsStep({
   error,
   isLoading = false,
   onBack,
+  onSkip,
   onEmailChange,
   onAppPasswordChange,
   onContinue,
@@ -116,6 +118,12 @@ export function SetupEmailCredentialsStep({
         </View>
 
         {!!error ? <Text className="mt-3 text-sm text-red-400">{error}</Text> : null}
+
+        {onSkip ? (
+          <Pressable onPress={onSkip} className="mt-3 self-center px-3 py-1" hitSlop={6}>
+            <Text className="text-xs text-zinc-500">Skip for now</Text>
+          </Pressable>
+        ) : null}
 
         <Pressable
           onPress={onContinue}

@@ -5,6 +5,8 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
   ActivityIndicator,
   Animated,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,13 +18,12 @@ import {
 import { LineChart, PieChart, type lineDataItem, type pieDataItem } from "react-native-gifted-charts";
 import Toast from "react-native-toast-message";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { EmailLinkGate } from "@/components/email/EmailLinkGate";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { useTiltPress } from "@/hooks/use-tilt-press";
 import type { HistoricalValuation, InvestmentData } from "@/lib/investments-types";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { isValidPan, sanitizePan } from "@/lib/investments-storage";
-import { useGetLinkedAccountsQuery } from "@/redux/api/linkedAccountsApi";
+import { isLinkedAccountActive, useGetLinkedAccountsQuery } from "@/redux/api/linkedAccountsApi";
 import { useGetInvestmentPanQuery, useGetMyInvestmentsQuery, useSaveInvestmentPanMutation } from "@/redux/api/investmentsApi";
 import { useSyncInvestmentsMutation } from "@/redux/api/syncApi";
 import { withOpacity } from "@/theme/color-theme";
@@ -65,7 +66,7 @@ function PanGateCard({
         <Feather name="shield" size={20} color={primaryColor} />
       </View>
 
-      <Text className="mt-4 text-zinc-50" style={{ fontFamily: DISPLAY_FONT_FAMILY, fontSize: 42, lineHeight: 48, fontWeight: "700" }}>
+      <Text className="mt-4 text-zinc-50" style={{ fontSize: 34, lineHeight: 40, fontWeight: "800", letterSpacing: -0.4 }}>
         Unlock your portfolio
       </Text>
 
@@ -91,7 +92,7 @@ function PanGateCard({
             color: "#F4F4F5",
             paddingHorizontal: 16,
             paddingVertical: 14,
-            fontSize: 28,
+            fontSize: 22,
             fontWeight: "800",
             textAlign: "center",
             letterSpacing: 1.5,
@@ -438,6 +439,39 @@ function SummaryCard({ title, subtitle, value, icon, accentColor, onPress }: Sum
   );
 }
 
+type EmailSyncCtaProps = {
+  onLinkGmail: () => void;
+  onLinkIcloud: () => void;
+};
+
+function EmailSyncCta({ onLinkGmail, onLinkIcloud }: EmailSyncCtaProps) {
+  return (
+    <View className="rounded-[28px] border border-zinc-800 bg-zinc-950 p-5">
+      <View className="flex-row items-center gap-3">
+        <View className="h-10 w-10 items-center justify-center rounded-xl bg-zinc-900">
+          <Feather name="mail" size={18} color="#D4D4D8" />
+        </View>
+        <Text className="flex-1 text-[34px] leading-[38px] font-black tracking-tight text-zinc-100">Auto-sync with email</Text>
+      </View>
+      <Text className="mt-3 text-sm leading-6 text-zinc-400">Link your inbox to fetch latest CAS statements whenever you tap sync.</Text>
+      <View className="mt-4 flex-row gap-3">
+        <Pressable onPress={onLinkGmail} className="flex-1 rounded-xl border border-zinc-700 bg-zinc-900/60 px-4 py-3">
+          <View className="flex-row items-center justify-center gap-2">
+            <Feather name="mail" size={14} color="#E4E4E7" />
+            <Text className="text-sm font-semibold text-zinc-200">Link Gmail</Text>
+          </View>
+        </Pressable>
+        <Pressable onPress={onLinkIcloud} className="flex-1 rounded-xl border border-zinc-700 bg-zinc-900/60 px-4 py-3">
+          <View className="flex-row items-center justify-center gap-2">
+            <Feather name="cloud" size={14} color="#E4E4E7" />
+            <Text className="text-sm font-semibold text-zinc-200">Link iCloud</Text>
+          </View>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 export function InvestmentsScreen() {
   const { colors } = useColorTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -450,7 +484,7 @@ export function InvestmentsScreen() {
   const [savePan, { isLoading: isSavingPan }] = useSaveInvestmentPanMutation();
   const [syncInvestments, { isLoading: isSyncing }] = useSyncInvestmentsMutation();
 
-  const isEmailLinked = !!linkedAccounts?.some((account) => account.isActive);
+  const isEmailLinked = !!linkedAccounts?.some((account) => isLinkedAccountActive(account.isActive));
   const currentPan = sanitizePan(panInput || storedPan || "");
   const hasPan = isValidPan(storedPan || "");
   const panValid = isValidPan(currentPan);
@@ -527,19 +561,23 @@ export function InvestmentsScreen() {
         </View>
 
         <View className="flex-1 px-6 pt-6">
-          <EmailLinkGate
-            title="Link email to keep investments in sync"
-            description="Connect your inbox to fetch latest CAS statements whenever you sync this tab."
-          >
-            {isLinkedAccountsLoading || isPanLoading || isInvestmentsLoading ? (
-              <View className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
-                <View className="flex-row items-center gap-2">
-                  <ActivityIndicator size="small" color="#D4D4D8" />
-                  <Text className="text-sm text-zinc-300">Loading investments...</Text>
-                </View>
+          {isLinkedAccountsLoading || isPanLoading || isInvestmentsLoading ? (
+            <View className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+              <View className="flex-row items-center gap-2">
+                <ActivityIndicator size="small" color="#D4D4D8" />
+                <Text className="text-sm text-zinc-300">Loading investments...</Text>
               </View>
-            ) : !hasPan ? (
-              <View className="mt-6 gap-4">
+            </View>
+          ) : !hasPan ? (
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+              <ScrollView
+                className="mt-6"
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="interactive"
+                automaticallyAdjustKeyboardInsets
+                contentContainerStyle={{ paddingBottom: 220 }}
+              >
                 <PanGateCard
                   currentPan={currentPan}
                   panValid={panValid}
@@ -549,9 +587,26 @@ export function InvestmentsScreen() {
                   primaryColor={colors.primary}
                   onTopOfPrimary={colors.onTopOfPrimary}
                 />
-              </View>
-            ) : (
-              <ScrollView className="mt-2" showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 16, paddingBottom: 140 }}>
+              </ScrollView>
+            </KeyboardAvoidingView>
+          ) : (
+            <ScrollView className="mt-2" showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 16, paddingBottom: 140 }}>
+              {!isEmailLinked ? (
+                <EmailSyncCta
+                  onLinkGmail={() =>
+                    navigation.navigate("EmailCredentials", {
+                      mode: "create",
+                      provider: "gmail",
+                    })
+                  }
+                  onLinkIcloud={() =>
+                    navigation.navigate("EmailCredentials", {
+                      mode: "create",
+                      provider: "icloud",
+                    })
+                  }
+                />
+              ) : null}
                 <View className="rounded-[28px] border border-zinc-800 bg-zinc-950 p-5">
                   {!!investments?.statementPeriod && (
                     <Text className="text-[10px] font-black uppercase tracking-[1.5px] text-zinc-500">
@@ -576,7 +631,6 @@ export function InvestmentsScreen() {
 
                 <View className="flex-row items-center justify-between px-1">
                   <Text className="text-lg font-black text-zinc-100">Your summary</Text>
-                  {!isEmailLinked ? <Text className="text-xs font-bold uppercase tracking-[1.1px] text-zinc-500">Link email to sync</Text> : null}
                 </View>
 
                 {hasData ? (
@@ -609,9 +663,8 @@ export function InvestmentsScreen() {
                     <Text className="mt-2 text-center text-sm text-zinc-400">Tap Sync to fetch your latest CAS statement.</Text>
                   </View>
                 )}
-              </ScrollView>
-            )}
-          </EmailLinkGate>
+            </ScrollView>
+          )}
         </View>
       </View>
     </SafeAreaView>

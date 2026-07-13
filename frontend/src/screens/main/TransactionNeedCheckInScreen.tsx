@@ -391,6 +391,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     paddingHorizontal: 18,
     paddingTop: 8,
+    paddingBottom: 14,
   },
   iconButton: {
     width: 58,

@@ -3,7 +3,12 @@ import { ActivityIndicator, Animated, Easing, View } from "react-native";
 import { getOrCreateDeviceUuid, saveAuthTokens, setOnboardingCompleted, setStoredName } from "@/lib/auth-storage";
 import { useAddAccountMutation, useGetAccountsQuery } from "@/redux/api/accountsApi";
 import { useRegisterDeviceMutation } from "@/redux/api/authApi";
-import { LinkedAccountProvider, useGetLinkedAccountsQuery, useLinkEmailAccountMutation } from "@/redux/api/linkedAccountsApi";
+import {
+  isLinkedAccountActive,
+  LinkedAccountProvider,
+  useGetLinkedAccountsQuery,
+  useLinkEmailAccountMutation,
+} from "@/redux/api/linkedAccountsApi";
 import type { NeedMaster } from "@/redux/api/needsApi";
 import { useGetNeedsQuery } from "@/redux/api/needsApi";
 import { setOnboardingComplete, setSession } from "@/redux/features/authSlice";
@@ -95,7 +100,6 @@ export function OnboardingScreen() {
   const [email, setEmail] = useState("");
   const [appPassword, setAppPassword] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
-
   const [bankName, setBankName] = useState("");
   const [bankDomains, setBankDomains] = useState("");
   const [bankLast4, setBankLast4] = useState("");
@@ -112,7 +116,6 @@ export function OnboardingScreen() {
   const { data: accounts = [], isLoading: isLoadingAccounts } = useGetAccountsQuery(undefined, {
     skip: !isAuthenticated,
   });
-
   const transitionX = useRef(new Animated.Value(0)).current;
   const transitionOpacity = useRef(new Animated.Value(1)).current;
   const isTransitioningRef = useRef(false);
@@ -341,10 +344,9 @@ export function OnboardingScreen() {
   useEffect(() => {
     if (!isAuthenticated || isLoadingLinkedAccounts || isLoadingAccounts) return;
 
-    const hasLinkedEmail = linkedAccounts.some((account) => account.isActive);
+    const hasLinkedEmail = linkedAccounts.some((account) => isLinkedAccountActive(account.isActive));
     const hasAccount = accounts.length > 0;
 
-    // If user already completed setup in a previous session, skip onboarding.
     if (hasLinkedEmail && hasAccount && step !== "setupAccount") {
       void completeOnboarding();
       return;
@@ -355,7 +357,7 @@ export function OnboardingScreen() {
       return;
     }
 
-    if (!hasLinkedEmail && step !== "setupEmailProvider" && step !== "setupEmailCredentials") {
+    if (!hasLinkedEmail && step !== "setupEmailProvider" && step !== "setupEmailCredentials" && step !== "setupAccount") {
       animateIntoStep("setupEmailProvider");
     }
   }, [accounts.length, isAuthenticated, isLoadingAccounts, isLoadingLinkedAccounts, linkedAccounts, step]);
@@ -417,12 +419,16 @@ export function OnboardingScreen() {
         email: normalizedEmail,
         appPassword: normalizedPassword,
       }).unwrap();
-
       animateIntoStep("setupAccount");
     } catch (requestError) {
       const apiError = requestError as { data?: { message?: string } };
       setEmailError(apiError?.data?.message || "Unable to connect to your mailbox. Check your credentials.");
     }
+  };
+
+  const handleSkipEmailLinking = async () => {
+    setEmailError(null);
+    await completeOnboarding();
   };
 
   const handleSaveAccount = async () => {
@@ -432,11 +438,6 @@ export function OnboardingScreen() {
 
     if (!normalizedTitle) {
       setBankError("Bank name is required.");
-      return;
-    }
-
-    if (!domainNames.length) {
-      setBankError("Add at least one sender domain/email.");
       return;
     }
 
@@ -531,6 +532,7 @@ export function OnboardingScreen() {
     return (
       <SetupEmailProviderStep
         transition={transition}
+        onSkip={handleSkipEmailLinking}
         onSelectProvider={(provider) => {
           setEmailProvider(provider);
           if (emailError) setEmailError(null);
@@ -557,6 +559,7 @@ export function OnboardingScreen() {
           setAppPassword(value);
           if (emailError) setEmailError(null);
         }}
+        onSkip={handleSkipEmailLinking}
         onContinue={handleLinkEmailAndContinue}
       />
     );

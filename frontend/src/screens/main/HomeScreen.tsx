@@ -9,6 +9,7 @@ import { FiyLogo } from "@/components/fiy-logo";
 import { EditTransactionDrawer } from "@/components/transactions/EditTransactionDrawer";
 import { useTiltPress } from "@/hooks/use-tilt-press";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
+import { isLinkedAccountActive, useGetLinkedAccountsQuery } from "@/redux/api/linkedAccountsApi";
 import { useGetTransactionsQuery } from "@/redux/api/transactionsApi";
 import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
 
@@ -34,8 +35,10 @@ const createShortArcPath = (center: number, radius: number, startAngle: number, 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { data: transactions = [] } = useGetTransactionsQuery();
+  const { data: linkedAccounts = [] } = useGetLinkedAccountsQuery();
   const { width } = useWindowDimensions();
   const [isRecordDrawerOpen, setIsRecordDrawerOpen] = useState(false);
+  const hasLinkedEmail = linkedAccounts.some((account) => isLinkedAccountActive(account.isActive));
 
   const rotation = useRef(new Animated.Value(0)).current;
   const plusPress = useTiltPress({ pressedScale: 0.93, tiltDegrees: 0.8, perspective: 900 });
@@ -154,6 +157,22 @@ export function HomeScreen() {
 
         <View style={styles.content}>
           <Text style={[styles.title, { fontSize: titleFontSize, lineHeight: titleLineHeight }]}>Record a transaction?</Text>
+          {!hasLinkedEmail ? (
+            <Pressable
+              onPress={() =>
+                navigation.navigate("EmailCredentials", {
+                  mode: "create",
+                  provider: "gmail",
+                })
+              }
+              style={styles.linkHintButton}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="Link email for automatic transaction sync"
+            >
+              <Text style={styles.linkHintText}>Want them automatic? Link your email.</Text>
+            </Pressable>
+          ) : null}
 
           <View style={[styles.orbStage, { width: ringSize, height: ringSize }]}>
             <AnimatedSvg width={ringSize} height={ringSize} style={[styles.ring, ringSpinStyle]}>
@@ -259,7 +278,18 @@ const styles = StyleSheet.create({
     color: "#FAFAFA",
     fontFamily: DISPLAY_FONT_FAMILY,
     fontWeight: "700",
-    marginBottom: 56,
+    marginBottom: 10,
+  },
+  linkHintButton: {
+    marginBottom: 40,
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+  },
+  linkHintText: {
+    color: "rgba(228,228,231,0.72)",
+    fontSize: 11,
+    lineHeight: 14,
+    textDecorationLine: "underline",
   },
   orbStage: {
     alignItems: "center",
