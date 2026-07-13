@@ -216,9 +216,9 @@ export function TransactionsScreen() {
               </View>
             </View>
           ) : groupedTransactions.length === 0 ? (
-            <View style={styles.infoCard}>
-              <Text style={styles.infoTitle}>No transactions yet</Text>
-              <Text style={styles.infoDescription}>Record one from Home to get started.</Text>
+            <View style={styles.emptyWrap}>
+              <Text style={styles.emptyTitle}>No transactions yet</Text>
+              <Text style={styles.emptySubtitle}>Record one from Home to get started.</Text>
             </View>
           ) : (
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -390,13 +390,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 18,
   },
-  infoTitle: {
-    color: "#F4F4F5",
-    fontSize: 17,
+  emptyWrap: {
+    marginTop: 24,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(228,228,231,0.12)",
+    backgroundColor: "rgba(24,24,27,0.72)",
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    gap: 8,
+  },
+  emptyTitle: {
+    color: "#FAFAFA",
+    fontSize: 22,
+    lineHeight: 26,
+    fontFamily: DISPLAY_FONT_FAMILY,
     fontWeight: "700",
   },
-  infoDescription: {
-    marginTop: 8,
+  emptySubtitle: {
     color: "#A1A1AA",
     fontSize: 14,
     lineHeight: 20,

@@ -33,7 +33,7 @@ export function AccountsScreen() {
           ) : null}
         </View>
 
-        <View className="flex-1 px-6 pb-32 pt-8">
+        <View className="flex-1 px-6 pb-32 pt-6">
           {hasAccounts ? (
             <AccountSetupGate
               title="Add your first account"
