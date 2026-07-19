@@ -111,19 +111,13 @@ export function TransactionsInsights({ transactions }: TransactionsInsightsProps
         avgInvestments: 0,
         rangeLabel: "",
         categories: [] as Array<{ name: string; amount: number; percent: number; color: string }>,
-        needs: [] as Array<{ key: string; label: string; amount: number; percent: number; color: string; topWord?: string }>,
       };
     }
 
     const monthKeys = new Set(monthSeries.map((item) => item.fullLabel));
     let totalExpenses = 0;
     let totalInvestments = 0;
-    let totalNeedsAmount = 0;
     const categoryTotals = new Map<string, number>();
-    const needTotals = new Map<
-      string,
-      { label: string; color: string; amount: number; wordTotals: Map<string, number> }
-    >();
 
     filteredTransactions.forEach((tx) => {
       if (tx.refunded) return;
@@ -131,27 +125,6 @@ export function TransactionsInsights({ transactions }: TransactionsInsightsProps
       if (!monthKeys.has(txMonth)) return;
 
       const amount = getEffectiveAmount(tx);
-      if (tx.needSelection?.key && tx.needSelection?.label && tx.needSelection?.color) {
-        totalNeedsAmount += amount;
-        const current = needTotals.get(tx.needSelection.key);
-        if (current) {
-          current.amount += amount;
-          if (tx.needSelection.word) {
-            current.wordTotals.set(tx.needSelection.word, (current.wordTotals.get(tx.needSelection.word) || 0) + amount);
-          }
-        } else {
-          const wordTotals = new Map<string, number>();
-          if (tx.needSelection.word) {
-            wordTotals.set(tx.needSelection.word, amount);
-          }
-          needTotals.set(tx.needSelection.key, {
-            label: tx.needSelection.label,
-            color: tx.needSelection.color,
-            amount,
-            wordTotals,
-          });
-        }
-      }
 
       if (isInvestment(tx)) {
         totalInvestments += amount;
@@ -175,20 +148,6 @@ export function TransactionsInsights({ transactions }: TransactionsInsightsProps
       }))
       .sort((a, b) => b.amount - a.amount);
 
-    const needs = Array.from(needTotals.entries())
-      .map(([key, item]) => {
-        const topWordEntry = Array.from(item.wordTotals.entries()).sort((a, b) => b[1] - a[1])[0];
-        return {
-          key,
-          label: item.label,
-          amount: item.amount,
-          percent: totalNeedsAmount ? (item.amount / totalNeedsAmount) * 100 : 0,
-          color: item.color,
-          topWord: topWordEntry?.[0],
-        };
-      })
-      .sort((a, b) => b.amount - a.amount);
-
     const avgExpenses = totalExpenses / (monthSeries.length || 1);
     const avgInvestments = totalInvestments / (monthSeries.length || 1);
     const rangeLabel =
@@ -196,7 +155,7 @@ export function TransactionsInsights({ transactions }: TransactionsInsightsProps
         ? `${monthSeries[0].monthYear} - ${monthSeries[monthSeries.length - 1].monthYear}`
         : monthSeries[0].monthYear;
 
-    return { avgExpenses, avgInvestments, rangeLabel, categories, needs };
+    return { avgExpenses, avgInvestments, rangeLabel, categories };
   }, [monthSeries, filteredTransactions]);
 
   const chartData = useMemo<barDataItem[]>(
@@ -346,32 +305,6 @@ export function TransactionsInsights({ transactions }: TransactionsInsightsProps
         </View>
       ) : null}
 
-      {selectedData.needs.length ? (
-        <View style={styles.section}>
-          <View style={styles.splitBar}>
-            {selectedData.needs.map((need) => (
-              <View
-                key={need.key}
-                style={[styles.splitSegment, { width: `${Math.max(need.percent, 3)}%`, backgroundColor: need.color }]}
-              />
-            ))}
-          </View>
-          <View style={styles.categoryLegendWrap}>
-            {selectedData.needs.map((need) => (
-              <View key={need.key} style={styles.needLegendItem}>
-                <View style={[styles.needLegendDot, { backgroundColor: need.color }]} />
-                <View style={styles.needLegendCopy}>
-                  <View style={styles.needLegendTitleRow}>
-                    <Text style={styles.splitLegendName}>{need.label}</Text>
-                    <Text style={styles.splitLegendPercent}>{Math.round(need.percent)}%</Text>
-                  </View>
-                  {need.topWord ? <Text style={styles.needLegendSubword}>Top: {need.topWord}</Text> : null}
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -534,30 +467,5 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 999,
     marginTop: 1,
-  },
-  needLegendItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
-    marginRight: 8,
-  },
-  needLegendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    marginTop: 4,
-  },
-  needLegendCopy: {
-    gap: 1,
-  },
-  needLegendTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  needLegendSubword: {
-    color: "#8E8E95",
-    fontSize: 11,
-    fontWeight: "600",
   },
 });

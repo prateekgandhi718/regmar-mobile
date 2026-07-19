@@ -27,11 +27,9 @@ export interface TransactionCategory {
 
 export interface NeedSelection {
   key: "protection" | "fuel" | "connection" | "freedom";
-  label: string;
-  word: string;
+  moodState: string;
+  spendFor: "Need" | "Love" | "Like" | "Want";
   color: string;
-  contextWith?: string;
-  contextWhere?: string;
   completedAt?: string;
 }
 

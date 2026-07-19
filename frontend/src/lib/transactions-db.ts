@@ -66,11 +66,9 @@ const parseTransactionRow = async (row: StoredTransactionRow): Promise<Transacti
     row.need_key && row.need_label && row.need_word && row.need_color
       ? {
           key: row.need_key,
-          label: row.need_label,
-          word: row.need_word,
+          moodState: row.need_label,
+          spendFor: row.need_word as NeedSelection["spendFor"],
           color: row.need_color,
-          contextWith: row.need_context_with ?? undefined,
-          contextWhere: row.need_context_where ?? undefined,
           completedAt: row.need_completed_at ?? undefined,
         }
       : undefined;
@@ -258,11 +256,11 @@ export const upsertTransactions = async (transactions: Transaction[]) => {
       tx.categoryId?._id ?? null,
       tx.categoryId?.name ?? null,
       tx.needSelection?.key ?? null,
-      tx.needSelection?.label ?? null,
-      tx.needSelection?.word ?? null,
+      tx.needSelection?.moodState ?? null,
+      tx.needSelection?.spendFor ?? null,
       tx.needSelection?.color ?? null,
-      tx.needSelection?.contextWith ?? null,
-      tx.needSelection?.contextWhere ?? null,
+      null,
+      null,
       tx.needSelection?.completedAt ?? null,
       tx.createdAt,
       tx.updatedAt,
@@ -511,15 +509,15 @@ export const updateTransactionLocal = async (
     updates.push("need_key = ?");
     params.push(patch.needSelection?.key ?? null);
     updates.push("need_label = ?");
-    params.push(patch.needSelection?.label ?? null);
+    params.push(patch.needSelection?.moodState ?? null);
     updates.push("need_word = ?");
-    params.push(patch.needSelection?.word ?? null);
+    params.push(patch.needSelection?.spendFor ?? null);
     updates.push("need_color = ?");
     params.push(patch.needSelection?.color ?? null);
     updates.push("need_context_with = ?");
-    params.push(patch.needSelection?.contextWith ?? null);
+    params.push(null);
     updates.push("need_context_where = ?");
-    params.push(patch.needSelection?.contextWhere ?? null);
+    params.push(null);
     updates.push("need_completed_at = ?");
     params.push(patch.needSelection?.completedAt ?? null);
   }

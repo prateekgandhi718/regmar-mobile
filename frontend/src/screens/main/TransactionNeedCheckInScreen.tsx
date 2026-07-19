@@ -1,69 +1,87 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Toast from "react-native-toast-message";
 import { CategoryIcon } from "@/components/category-icon";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
-import { useGetNeedsQuery } from "@/redux/api/needsApi";
 import { useUpdateTransactionMutation } from "@/redux/api/transactionsApi";
 import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
 
 type Props = NativeStackScreenProps<RootStackParamList, "TransactionNeedCheckIn">;
 type NeedKey = "protection" | "fuel" | "connection" | "freedom";
+type SpendForOption = "Need" | "Love" | "Like" | "Want";
 
 type NeedCircle = {
   key: NeedKey;
-  label: string;
+  moodState: string;
   lineA: string;
   lineB: string;
   layers: [string, string, string];
-  words: string[];
-  withOptions: string[];
-  whereOptions: string[];
 };
 
-const FALLBACK_CIRCLES: NeedCircle[] = [
+const SPEND_FOR_OPTIONS: SpendForOption[] = ["Need", "Love", "Like", "Want"];
+const SPEND_FOR_CHOICES: Array<{
+  key: SpendForOption;
+  label: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  description: string;
+}> = [
+  {
+    key: "Need",
+    label: "Needs",
+    icon: "shield-lock-outline",
+    description: "It was an absolute safety/survival necessity.",
+  },
+  {
+    key: "Love",
+    label: "Loves",
+    icon: "heart-multiple",
+    description: "This will bring me deep joy a year from now.",
+  },
+  {
+    key: "Want",
+    label: "Wants",
+    icon: "lightning-bolt-circle",
+    description: "Instant gratification, honestly.",
+  },
+  {
+    key: "Like",
+    label: "Likes",
+    icon: "star-circle-outline",
+    description: "This is a nice-to-have, temporary treat.",
+  },
+];
+
+const MOOD_CIRCLES: NeedCircle[] = [
   {
     key: "protection",
-    label: "High Urgency External",
-    lineA: "High Urgency",
-    lineB: "External",
+    moodState: "Anxious/Angry/Frustrated",
+    lineA: "Anxious/Angry",
+    lineB: "Frustrated",
     layers: ["#D84236", "#FF7A45", "#FF4F67"],
-    words: ["Shelter", "Security", "Emergency", "Stability", "Preparedness", "Assurance", "Care", "Reliability"],
-    withOptions: ["By myself", "Friends", "Family", "Co-workers", "Date", "Pets"],
-    whereOptions: ["Home", "Outside", "Commuting", "Work", "School"],
   },
   {
     key: "fuel",
-    label: "High Urgency Internal",
-    lineA: "High Urgency",
-    lineB: "Internal",
+    moodState: "Excited/Inspired/Joyful",
+    lineA: "Excited/Inspired",
+    lineB: "Joyful",
     layers: ["#D0AF45", "#ECD86A", "#FBC12F"],
-    words: ["Nourishment", "Energy", "Healing", "Recovery", "Hydration", "Strength", "Vitality", "Restoration"],
-    withOptions: ["By myself", "Friends", "Family", "Co-workers", "Date", "Pets"],
-    whereOptions: ["Home", "Outside", "Commuting", "Work", "School"],
   },
   {
     key: "connection",
-    label: "Low Urgency External",
-    lineA: "Low Urgency",
-    lineB: "External",
+    moodState: "Bored/Exhausted/Depressed",
+    lineA: "Bored/Exhausted",
+    lineB: "Depressed",
     layers: ["#6D86D4", "#89B7E9", "#789CF3"],
-    words: ["Belonging", "Status", "Kindness", "Recognition", "Love", "Friendship", "Celebration", "Support"],
-    withOptions: ["By myself", "Friends", "Family", "Co-workers", "Date", "Pets"],
-    whereOptions: ["Home", "Outside", "Commuting", "Work", "School"],
   },
   {
     key: "freedom",
-    label: "Low Urgency Internal",
-    lineA: "Low Urgency",
-    lineB: "Internal",
+    moodState: "Calm/Content/Relaxed",
+    lineA: "Calm/Content",
+    lineB: "Relaxed",
     layers: ["#46BC88", "#7EE2AB", "#5EDAAF"],
-    words: ["Time", "Organized", "Unwinding", "Calm", "Simplicity", "Choice", "Ease", "Autonomy"],
-    withOptions: ["By myself", "Friends", "Family", "Co-workers", "Date", "Pets"],
-    whereOptions: ["Home", "Outside", "Commuting", "Work", "School"],
   },
 ];
 
@@ -76,77 +94,50 @@ const amountToLabel = (amount: number, type: "credit" | "debit") =>
 export function TransactionNeedCheckInScreen({ navigation, route }: Props) {
   const { transaction } = route.params;
   const existingNeedSelection = transaction.needSelection;
-  const { data: needsFromApi = [] } = useGetNeedsQuery();
   const [updateTransaction, { isLoading: isSaving }] = useUpdateTransactionMutation();
 
-  const circles = useMemo<NeedCircle[]>(() => {
-    if (!needsFromApi.length) return FALLBACK_CIRCLES;
-    const normalized = needsFromApi
-      .map((need) => ({
-        key: need.key,
-        label: need.label,
-        lineA: need.lineA,
-        lineB: need.lineB,
-        layers: need.layers,
-        words: need.words,
-        withOptions: need.withOptions,
-        whereOptions: need.whereOptions,
-        sortOrder: need.sortOrder,
-      }))
-      .sort((a, b) => a.sortOrder - b.sortOrder);
-    return normalized as NeedCircle[];
-  }, [needsFromApi]);
+  const circles = MOOD_CIRCLES;
 
   const [selectedNeedKey, setSelectedNeedKey] = useState<NeedKey | null>(
     (existingNeedSelection?.key as NeedKey | undefined) ?? null,
   );
-  const [selectedWord, setSelectedWord] = useState<string | null>(existingNeedSelection?.word ?? null);
-  const [selectedWithOption, setSelectedWithOption] = useState<string | null>(existingNeedSelection?.contextWith ?? null);
-  const [selectedWhereOption, setSelectedWhereOption] = useState<string | null>(existingNeedSelection?.contextWhere ?? null);
-
-  const scrollRef = useRef<ScrollView | null>(null);
-  const [wordSectionY, setWordSectionY] = useState<number | null>(null);
-  const [contextSectionY, setContextSectionY] = useState<number | null>(null);
-  const didSelectNeedRef = useRef(false);
-  const didSelectWordRef = useRef(false);
+  const previousSpendFor = existingNeedSelection?.spendFor;
+  const [selectedSpendFor, setSelectedSpendFor] = useState<SpendForOption | null>(
+    previousSpendFor && SPEND_FOR_OPTIONS.includes(previousSpendFor as SpendForOption)
+      ? (previousSpendFor as SpendForOption)
+      : null,
+  );
 
   const selectedNeed = useMemo(
     () => circles.find((item) => item.key === selectedNeedKey) || null,
     [circles, selectedNeedKey],
   );
+  const scrollRef = useRef<ScrollView | null>(null);
+  const [spendSectionY, setSpendSectionY] = useState<number | null>(null);
+  const didSelectMoodRef = useRef(false);
 
   useEffect(() => {
-    if (!didSelectNeedRef.current) return;
-    if (!selectedNeedKey || wordSectionY === null) return;
-    scrollRef.current?.scrollTo({ y: Math.max(wordSectionY - 16, 0), animated: true });
-  }, [selectedNeedKey, wordSectionY]);
-
-  useEffect(() => {
-    if (!didSelectWordRef.current) return;
-    if (!selectedWord || contextSectionY === null) return;
-    scrollRef.current?.scrollTo({ y: Math.max(contextSectionY - 16, 0), animated: true });
-  }, [contextSectionY, selectedWord]);
+    if (!didSelectMoodRef.current) return;
+    if (!selectedNeedKey || spendSectionY === null) return;
+    scrollRef.current?.scrollTo({ y: Math.max(spendSectionY - 16, 0), animated: true });
+  }, [selectedNeedKey, spendSectionY]);
 
   const onSelectNeedGroup = (key: NeedKey) => {
-    didSelectNeedRef.current = true;
+    didSelectMoodRef.current = true;
     setSelectedNeedKey(key);
-    setSelectedWord(null);
-    setSelectedWithOption(null);
-    setSelectedWhereOption(null);
+    setSelectedSpendFor(null);
   };
 
   const handleComplete = async () => {
-    if (!selectedNeed || !selectedWord) return;
+    if (!selectedNeed || !selectedSpendFor) return;
     try {
       await updateTransaction({
         clientTxnId: transaction.clientTxnId,
         needSelection: {
           key: selectedNeed.key,
-          label: selectedNeed.label,
-          word: selectedWord,
+          moodState: selectedNeed.moodState,
+          spendFor: selectedSpendFor,
           color: selectedNeed.layers[2],
-          contextWith: selectedWithOption ?? undefined,
-          contextWhere: selectedWhereOption ?? undefined,
           completedAt: new Date().toISOString(),
         },
       }).unwrap();
@@ -171,7 +162,7 @@ export function TransactionNeedCheckInScreen({ navigation, route }: Props) {
         </View>
 
         <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          <Text style={styles.title}>Tap the color that best describes the need this transaction was trying to fulfill</Text>
+          <Text style={styles.title}>Pick the color which best describes how you felt</Text>
 
           <View style={styles.transactionMetaCard}>
             <View style={styles.transactionMetaLeft}>
@@ -201,72 +192,38 @@ export function TransactionNeedCheckInScreen({ navigation, route }: Props) {
           </View>
 
           {selectedNeed ? (
-            <View style={styles.section} onLayout={(event) => setWordSectionY(event.nativeEvent.layout.y)}>
-              <Text style={styles.sectionTitle}>Pick the closest word</Text>
-              <View style={styles.wordsGrid}>
-                {selectedNeed.words.map((word) => {
-                  const active = selectedWord === word;
+            <View style={styles.section} onLayout={(event) => setSpendSectionY(event.nativeEvent.layout.y)}>
+              <Text style={styles.sectionTitle}>What was this spend for?</Text>
+              <View style={styles.spendIconGrid}>
+                {SPEND_FOR_CHOICES.map((item) => {
+                  const active = selectedSpendFor === item.key;
                   return (
-                    <Pressable
-                      key={word}
-                      onPress={() => {
-                        didSelectWordRef.current = true;
-                        setSelectedWord(word);
-                      }}
-                      style={[
-                        styles.wordChip,
-                        { borderColor: `${selectedNeed.layers[2]}99` },
-                        active ? styles.wordChipActive : null,
-                      ]}
-                    >
-                      <Text style={styles.wordText}>{word}</Text>
-                    </Pressable>
+                    <View key={item.key} style={styles.spendOptionItem}>
+                      <Pressable
+                        onPress={() => setSelectedSpendFor(item.key)}
+                        style={[styles.spendIconButton, active ? styles.spendIconButtonActive : null]}
+                      >
+                        <MaterialCommunityIcons
+                          name={item.icon}
+                          size={56}
+                          color={active ? "#F4F4F5" : "#A1A1AA"}
+                        />
+                        <Text style={styles.spendOptionLabel}>{item.label}</Text>
+                      </Pressable>
+                      <Text style={styles.spendOptionDescription}>{item.description}</Text>
+                    </View>
                   );
                 })}
               </View>
-            </View>
-          ) : null}
-
-          {selectedNeed && selectedWord ? (
-            <View style={styles.section} onLayout={(event) => setContextSectionY(event.nativeEvent.layout.y)}>
-              <Text style={styles.contextTitle}>Who are you with?</Text>
-              <View style={styles.contextGrid}>
-                {selectedNeed.withOptions.map((option) => {
-                  const active = selectedWithOption === option;
-                  return (
-                    <Pressable
-                      key={`with-${option}`}
-                      onPress={() => setSelectedWithOption(option)}
-                      style={[styles.contextChip, active ? styles.contextChipActive : null]}
-                    >
-                      <Text style={styles.contextChipText}>{option}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              <Text style={[styles.contextTitle, { marginTop: 26 }]}>Where are you?</Text>
-              <View style={styles.contextGrid}>
-                {selectedNeed.whereOptions.map((option) => {
-                  const active = selectedWhereOption === option;
-                  return (
-                    <Pressable
-                      key={`where-${option}`}
-                      onPress={() => setSelectedWhereOption(option)}
-                      style={[styles.contextChip, active ? styles.contextChipActive : null]}
-                    >
-                      <Text style={styles.contextChipText}>{option}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
               <Pressable
                 onPress={handleComplete}
-                disabled={isSaving}
+                disabled={isSaving || !selectedSpendFor}
                 style={[
                   styles.completeButton,
-                  { backgroundColor: selectedNeed.layers[2], opacity: isSaving ? 0.72 : 1 },
+                  {
+                    backgroundColor: selectedNeed.layers[2],
+                    opacity: isSaving || !selectedSpendFor ? 0.72 : 1,
+                  },
                 ]}
               >
                 <Text style={styles.completeButtonText}>
@@ -374,7 +331,7 @@ function NeedCircleBlob({ lineA, lineB, layers, groupIndex, selected, onPress }:
         />
         <View style={styles.circleTextWrap}>
           <Text style={styles.circleText}>{lineA}</Text>
-          <Text style={styles.circleText}>{lineB}</Text>
+          {lineB ? <Text style={styles.circleText}>{lineB}</Text> : null}
         </View>
       </View>
     </Pressable>
@@ -522,56 +479,35 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     fontWeight: "700",
   },
-  wordsGrid: {
-    marginTop: 14,
+  spendIconGrid: {
+    marginTop: 16,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    justifyContent: "space-between",
+    rowGap: 14,
   },
-  wordChip: {
+  spendIconButton: {
+    width: "100%",
+    borderRadius: 18,
     borderWidth: 1,
-    borderRadius: 999,
-    backgroundColor: "rgba(24,24,27,0.8)",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderColor: "rgba(255,255,255,0.16)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+    gap: 8,
   },
-  wordChipActive: {
-    backgroundColor: "rgba(63,63,70,0.92)",
+  spendIconButtonActive: {
+    borderColor: "rgba(255,255,255,0.38)",
+    backgroundColor: "rgba(255,255,255,0.12)",
   },
-  wordText: {
-    color: "#E4E4E7",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  contextTitle: {
+  spendOptionLabel: {
     color: "#F4F4F5",
-    fontSize: 20,
-    lineHeight: 26,
     fontFamily: DISPLAY_FONT_FAMILY,
+    fontSize: 21,
+    lineHeight: 26,
     fontWeight: "700",
-  },
-  contextGrid: {
-    marginTop: 12,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  contextChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.13)",
-    backgroundColor: "rgba(24,24,27,0.64)",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  contextChipActive: {
-    borderColor: "rgba(255,255,255,0.35)",
-    backgroundColor: "rgba(63,63,70,0.92)",
-  },
-  contextChipText: {
-    color: "#F4F4F5",
-    fontSize: 14,
-    lineHeight: 20,
+    textAlign: "center",
   },
   completeButton: {
     marginTop: 28,
@@ -585,5 +521,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
     fontWeight: "800",
+  },
+  spendOptionItem: {
+    width: "48.5%",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  spendOptionDescription: {
+    marginTop: 8,
+    color: "#D4D4D8",
+    fontSize: 12,
+    lineHeight: 16,
+    textAlign: "center",
+    width: "100%",
+    minHeight: 48,
   },
 });

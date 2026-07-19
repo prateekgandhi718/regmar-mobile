@@ -1,5 +1,37 @@
-import type { Transaction } from "@/lib/transactions-types";
+import type { NeedSelection, Transaction } from "@/lib/transactions-types";
 import { isDebitExcludedCategory } from "@/components/transactions/debit-exclusion-categories";
+
+type SpendForOption = NonNullable<NeedSelection["spendFor"]>;
+
+const ALIGNMENT_MATRIX: Record<NeedSelection["key"], Record<SpendForOption, string>> = {
+  protection: {
+    Need: "Emergency buy",
+    Love: "Regretful impulse",
+    Like: "Fast comfort",
+    Want: "Danger Zone",
+  },
+  connection: {
+    Need: "Deliberate",
+    Love: "Loneliness fix",
+    Like: "Distraction",
+    Want: "Danger Zone",
+  },
+  fuel: {
+    Need: "Happy upgrade",
+    Love: "Peak Spending",
+    Like: "Fun times",
+    Want: "Impulse splurge",
+  },
+  freedom: {
+    Need: "Planned expense",
+    Love: "Peak Spending",
+    Like: "Intentional reward",
+    Want: "Minor indulgence",
+  },
+};
+
+const isSpendForOption = (value?: string | null): value is SpendForOption =>
+  value === "Need" || value === "Love" || value === "Like" || value === "Want";
 
 export const formatAmount = (amount: number) =>
   amount.toLocaleString("en-IN", {
@@ -55,6 +87,13 @@ export const getSignedExpenseAmount = (tx: Transaction) => {
     return -getEffectiveAmount(tx);
   }
   return 0;
+};
+
+export const getAlignmentMatrixLabel = (needSelection?: Transaction["needSelection"]) => {
+  if (!needSelection?.key) return null;
+  const spendFor = needSelection.spendFor;
+  if (!isSpendForOption(spendFor)) return null;
+  return ALIGNMENT_MATRIX[needSelection.key][spendFor];
 };
 
 export const formatMonthLabel = (date: Date) =>

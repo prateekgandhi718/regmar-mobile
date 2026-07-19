@@ -73,13 +73,13 @@ export function HomeScreen() {
     const uniqueNeedWords = new Set<string>();
 
     for (const tx of transactions) {
-      const selectedWord = tx.needSelection?.word?.trim().toLowerCase();
+      const selectedWord = tx.needSelection?.spendFor?.trim().toLowerCase();
       if (selectedWord) {
         uniqueNeedWords.add(selectedWord);
         continue;
       }
 
-      const selectedLabel = tx.needSelection?.label?.trim().toLowerCase();
+      const selectedLabel = tx.needSelection?.moodState?.trim().toLowerCase();
       if (selectedLabel) {
         uniqueNeedWords.add(selectedLabel);
       }

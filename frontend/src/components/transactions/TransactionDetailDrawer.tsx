@@ -8,7 +8,14 @@ import { FiyLogo } from "@/components/fiy-logo";
 import { getBankLogoUrl } from "@/lib/bank-logos";
 import type { Transaction } from "@/lib/transactions-types";
 import { useDeleteTransactionMutation } from "@/redux/api/transactionsApi";
-import { formatAmount, getEffectiveAmount, getEffectiveDate, getMerchantName, isDebitTransaction } from "@/components/transactions/transaction-utils";
+import {
+  formatAmount,
+  getAlignmentMatrixLabel,
+  getEffectiveAmount,
+  getEffectiveDate,
+  getMerchantName,
+  isDebitTransaction,
+} from "@/components/transactions/transaction-utils";
 
 type TransactionDetailDrawerProps = {
   transaction: Transaction | null;
@@ -76,6 +83,8 @@ export function TransactionDetailDrawer({
     transaction.accountId?._id === "manual-local-account" ||
     transaction.domainId?.fromEmail === "manual@local" ||
     transaction.accountId?.title?.toLowerCase() === "manual entry";
+  const alignmentLabel = getAlignmentMatrixLabel(transaction.needSelection);
+  const moodState = transaction.needSelection?.moodState;
 
   const handleDelete = async () => {
     try {
@@ -115,9 +124,8 @@ export function TransactionDetailDrawer({
               />
               <View style={styles.needHeroCopyWrap}>
                 <Text style={[styles.needHeroWord, { color: transaction.needSelection.color }]}>
-                  {transaction.needSelection.word}
+                  {alignmentLabel || moodState}
                 </Text>
-                <Text style={styles.needHeroMeta}>{transaction.needSelection.label}</Text>
               </View>
               <View style={styles.needHeroShapeWrap}>
                 <View
@@ -248,11 +256,6 @@ const styles = StyleSheet.create({
     lineHeight: 40,
     fontWeight: "800",
     textTransform: "capitalize",
-  },
-  needHeroMeta: {
-    color: "#D4D4D8",
-    fontSize: 12,
-    fontWeight: "600",
   },
   needHeroShapeWrap: {
     width: 88,
