@@ -13,7 +13,7 @@ export const generateRegexFromEmailInternal = async (emailBodies: string[], from
       throw new Error('GEMINI_API_KEY is not defined');
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash-lite' });
 
     const combinedEmails = emailBodies.map((body, i) => `Email Sample ${i + 1}:\n"""\n${body}\n"""`).join('\n\n');
 

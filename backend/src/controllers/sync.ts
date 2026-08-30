@@ -11,8 +11,12 @@ import {
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.js";
 import { parseCASText } from "../helpers/casParser";
 import { ClassifyEmailResponse, ClassifyTransactionTypeResponse, EntityData, ExtractEntitiesResponse, TestResultEntry } from "../helpers/syncTransactions";
-import { processEmailWithPython } from "../helpers/txnProcessing";
 import { formatInvestmentPayload } from "./investments";
+import {
+  GEMINI_BATCH_LIMIT,
+  processEmailsWithGemini,
+} from "../helpers/geminiBatchTxnParser";
+import { CategoryModel, getCategories } from "../db/categoryModel";
 
 type SyncedTransaction = {
   clientTxnId: string;
@@ -48,6 +52,7 @@ type SyncedTransaction = {
     _id: string;
     name: string;
   };
+  categoryName?: string;
   newDate?: string;
   newDescription?: string;
   newAmount?: number;
@@ -303,75 +308,91 @@ export const syncAccountTransactions = async (
             `Processing ${emails.length} emails for ${domain.fromEmail}`,
           );
 
-          for (const { content, date, uid } of emails) {
-            console.log(`\n--- Processing Email (${date}) ---`);
-            console.log(
-              `RAW TEXT:\n${content.substring(0, 200)}...\n------------------`,
+          for (let index = 0; index < emails.length; index += GEMINI_BATCH_LIMIT) {
+            const batch = emails.slice(index, index + GEMINI_BATCH_LIMIT);
+            const parsedBatch = await processEmailsWithGemini(
+              batch.map(({ content }) => content),
             );
 
-            const result = await processEmailWithPython(content);
+            for (let batchIndex = 0; batchIndex < batch.length; batchIndex += 1) {
+              const { content, date, uid } = batch[batchIndex];
+              const parsed = parsedBatch[batchIndex];
 
-            if (result.status === "unavailable") {
-              throw new MlUnavailableError(
-                "Transaction sync is temporarily unavailable. Please try again in a few minutes.",
-              );
+              if (!parsed) {
+                console.warn(
+                  `Missing Gemini parse result for email uid ${uid} in ${domain.fromEmail}`,
+                );
+                continue;
+              }
+
+              if (!parsed.is_transaction) {
+                console.log(
+                  `[${domain.fromEmail}] Skipped (not a transaction email)`,
+                );
+                continue;
+              }
+
+              const now = new Date().toISOString();
+              const txnType = parsed.type === "credit" ? "credit" : "debit";
+              const originalAmount = Number(parsed.amount) || 0;
+              const originalDescription =
+                typeof parsed.merchant === "string"
+                  ? parsed.merchant.trim()
+                  : "";
+              const categoryName =
+                typeof parsed.category === "string" && parsed.category.trim()
+                  ? parsed.category.trim()
+                  : "Personal";
+
+              const categoryDoc = await CategoryModel.findOne({ name: categoryName })
+                .select("_id name")
+                .lean<{ _id: string; name: string } | null>();
+
+              const categoryId = categoryDoc
+                ? {
+                    _id: String(categoryDoc._id),
+                    name: categoryDoc.name,
+                  }
+                : undefined;
+
+              syncedTransactions.push({
+                clientTxnId: createClientTxnId(
+                  userId,
+                  account.clientAccountId,
+                  domain.clientDomainId,
+                  uid,
+                ),
+                accountId: {
+                  _id: account.clientAccountId,
+                  userId,
+                  title: account.title,
+                  currency: account.currency,
+                  accountNumber: account.accountNumber || undefined,
+                },
+                domainId: {
+                  _id: domain.clientDomainId,
+                  userId,
+                  accountId: account.clientAccountId,
+                  fromEmail: domain.fromEmail.trim(),
+                },
+                userId,
+                originalDate: new Date(date).toISOString(),
+                originalDescription: originalDescription || content.substring(0, 80),
+                originalAmount,
+                type: txnType,
+                categoryId,
+                categoryName,
+                nerModel: "gemini-3.5-flash-lite",
+                entities: [],
+                correctedEntities: null,
+                refunded: false,
+                emailBody: content,
+                createdAt: now,
+                updatedAt: now,
+              });
+              totalSynced++;
+              console.log("Processed transaction in memory");
             }
-
-            if (result.status === "non_transaction") {
-              console.log(
-                `[${domain.fromEmail}] Skipped (not a transaction email)`,
-              );
-              continue;
-            }
-
-            const {
-              txnType,
-              typeConfidence,
-              isTransactionConfidence,
-              processedEntities,
-              nerModelName,
-              originalAmount,
-              originalDescription,
-            } = result.data;
-
-            const now = new Date().toISOString();
-            syncedTransactions.push({
-              clientTxnId: createClientTxnId(
-                userId,
-                account.clientAccountId,
-                domain.clientDomainId,
-                uid,
-              ),
-              accountId: {
-                _id: account.clientAccountId,
-                userId,
-                title: account.title,
-                currency: account.currency,
-                accountNumber: account.accountNumber || undefined,
-              },
-              domainId: {
-                _id: domain.clientDomainId,
-                userId,
-                accountId: account.clientAccountId,
-                fromEmail: domain.fromEmail.trim(),
-              },
-              userId,
-              originalDate: new Date(date).toISOString(),
-              originalDescription,
-              originalAmount,
-              type: txnType,
-              typeConfidence,
-              isTransactionConfidence,
-              nerModel: nerModelName || undefined,
-              entities: processedEntities,
-              correctedEntities: null,
-              refunded: false,
-              emailBody: content,
-              createdAt: now,
-              updatedAt: now,
-            });
-            totalSynced++;
-            console.log("Processed transaction in memory");
           }
         }
 
