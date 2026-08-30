@@ -5,6 +5,7 @@ import type { NeedSelection, Transaction, TransactionCategory, TransactionFilter
 
 const DB_NAME = "transactions.db";
 const TXN_TABLE = "transactions";
+const DB_SCHEMA_VERSION = 2;
 
 type StoredTransactionRow = {
   client_txn_id: string;
@@ -35,7 +36,6 @@ type StoredTransactionRow = {
 };
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-
 const getDb = () => {
   if (!dbPromise) {
     dbPromise = SQLite.openDatabaseAsync(DB_NAME);
@@ -92,6 +92,14 @@ const parseTransactionRow = async (row: StoredTransactionRow): Promise<Transacti
 export const initTransactionsDb = async () => {
   const db = await getDb();
 
+  const versionRow = await db.getFirstAsync<{ user_version: number }>(
+    "PRAGMA user_version;",
+  );
+  if ((versionRow?.user_version ?? 0) < DB_SCHEMA_VERSION) {
+    await db.execAsync(`DROP TABLE IF EXISTS ${TXN_TABLE};`);
+    await db.execAsync(`PRAGMA user_version = ${DB_SCHEMA_VERSION};`);
+  }
+
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS ${TXN_TABLE} (
@@ -125,23 +133,6 @@ export const initTransactionsDb = async () => {
     CREATE INDEX IF NOT EXISTS idx_transactions_category ON ${TXN_TABLE} (category_id);
   `);
 
-  // Lightweight migrations for existing local installs.
-  const migrationColumns = [
-    "need_key TEXT",
-    "need_label TEXT",
-    "need_word TEXT",
-    "need_color TEXT",
-    "need_context_with TEXT",
-    "need_context_where TEXT",
-    "need_completed_at TEXT",
-  ];
-  for (const column of migrationColumns) {
-    try {
-      await db.execAsync(`ALTER TABLE ${TXN_TABLE} ADD COLUMN ${column};`);
-    } catch {
-      // Column likely already exists.
-    }
-  }
 };
 
 export const upsertTransactions = async (transactions: Transaction[]) => {
