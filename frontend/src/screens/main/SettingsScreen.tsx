@@ -26,11 +26,9 @@ import {
   useUnlinkAccountMutation,
 } from "@/redux/api/linkedAccountsApi";
 import { needsApi } from "@/redux/api/needsApi";
-import { nerFeedbackApi } from "@/redux/api/nerFeedbackApi";
 import { syncApi } from "@/redux/api/syncApi";
 import { useClearTransactionsMutation } from "@/redux/api/transactionsApi";
 import { transactionsApi } from "@/redux/api/transactionsApi";
-import { txnClassifierApi } from "@/redux/api/txnClassifierApi";
 import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
 
 export function SettingsScreen() {
@@ -99,11 +97,9 @@ export function SettingsScreen() {
               dispatch(investmentsApi.util.resetApiState());
               dispatch(linkedAccountsApi.util.resetApiState());
               dispatch(needsApi.util.resetApiState());
-              dispatch(nerFeedbackApi.util.resetApiState());
               dispatch(accountsApi.util.resetApiState());
               dispatch(syncApi.util.resetApiState());
               dispatch(transactionsApi.util.resetApiState());
-              dispatch(txnClassifierApi.util.resetApiState());
               dispatch(logout());
               Toast.show({
                 type: didDeleteCloudData ? "success" : "info",

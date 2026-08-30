@@ -10,9 +10,9 @@ import {
 } from "../helpers/imap";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.js";
 import { parseCASText } from "../helpers/casParser";
-import { ClassifyEmailResponse, ClassifyTransactionTypeResponse, EntityData, ExtractEntitiesResponse, TestResultEntry } from "../helpers/syncTransactions";
-import { processEmailWithPython } from "../helpers/txnProcessing";
 import { formatInvestmentPayload } from "./investments";
+import { processEmailsWithGemini } from "../helpers/geminiBatchTxnParser";
+import { CategoryModel, getCategories } from "../db/categoryModel";
 
 type SyncedTransaction = {
   clientTxnId: string;
@@ -34,12 +34,7 @@ type SyncedTransaction = {
   originalDescription: string;
   originalAmount: number;
   type: "credit" | "debit";
-  typeConfidence?: number;
-  isTransactionConfidence?: number;
   userType?: "credit" | "debit";
-  nerModel?: string;
-  entities: EntityData[];
-  correctedEntities: null;
   refunded: boolean;
   emailBody: string;
   createdAt: string;
@@ -48,6 +43,7 @@ type SyncedTransaction = {
     _id: string;
     name: string;
   };
+  categoryName?: string;
   newDate?: string;
   newDescription?: string;
   newAmount?: number;
@@ -65,13 +61,6 @@ type SyncRequestAccount = {
   accountNumber?: string;
   domains: SyncRequestDomain[];
 };
-
-class MlUnavailableError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "MlUnavailableError";
-  }
-}
 
 const createClientTxnId = (userId: string, accountId: string, domainId: string, uid: number) =>
   createHash("sha256")
@@ -303,75 +292,85 @@ export const syncAccountTransactions = async (
             `Processing ${emails.length} emails for ${domain.fromEmail}`,
           );
 
-          for (const { content, date, uid } of emails) {
-            console.log(`\n--- Processing Email (${date}) ---`);
-            console.log(
-              `RAW TEXT:\n${content.substring(0, 200)}...\n------------------`,
-            );
+          const parsedEmails = await processEmailsWithGemini(
+            emails.map(({ content }) => content),
+          );
 
-            const result = await processEmailWithPython(content);
+          for (let index = 0; index < emails.length; index += 1) {
+            const { content, date, uid } = emails[index];
+            const parsed = parsedEmails[index];
 
-            if (result.status === "unavailable") {
-              throw new MlUnavailableError(
-                "Transaction sync is temporarily unavailable. Please try again in a few minutes.",
-              );
-            }
+              if (!parsed) {
+                console.warn(
+                  `Missing Gemini parse result for email uid ${uid} in ${domain.fromEmail}`,
+                );
+                continue;
+              }
 
-            if (result.status === "non_transaction") {
-              console.log(
-                `[${domain.fromEmail}] Skipped (not a transaction email)`,
-              );
-              continue;
-            }
+              if (!parsed.is_transaction) {
+                console.log(
+                  `[${domain.fromEmail}] Skipped (not a transaction email)`,
+                );
+                continue;
+              }
 
-            const {
-              txnType,
-              typeConfidence,
-              isTransactionConfidence,
-              processedEntities,
-              nerModelName,
-              originalAmount,
-              originalDescription,
-            } = result.data;
+              const now = new Date().toISOString();
+              const txnType = parsed.type === "credit" ? "credit" : "debit";
+              const originalAmount = Number(parsed.amount) || 0;
+              const originalDescription =
+                typeof parsed.merchant === "string"
+                  ? parsed.merchant.trim()
+                  : "";
+              const categoryName =
+                typeof parsed.category === "string" && parsed.category.trim()
+                  ? parsed.category.trim()
+                  : "Personal";
 
-            const now = new Date().toISOString();
-            syncedTransactions.push({
-              clientTxnId: createClientTxnId(
+              const categoryDoc = await CategoryModel.findOne({ name: categoryName })
+                .select("_id name")
+                .lean<{ _id: string; name: string } | null>();
+
+              const categoryId = categoryDoc
+                ? {
+                    _id: String(categoryDoc._id),
+                    name: categoryDoc.name,
+                  }
+                : undefined;
+
+              syncedTransactions.push({
+                clientTxnId: createClientTxnId(
+                  userId,
+                  account.clientAccountId,
+                  domain.clientDomainId,
+                  uid,
+                ),
+                accountId: {
+                  _id: account.clientAccountId,
+                  userId,
+                  title: account.title,
+                  currency: account.currency,
+                  accountNumber: account.accountNumber || undefined,
+                },
+                domainId: {
+                  _id: domain.clientDomainId,
+                  userId,
+                  accountId: account.clientAccountId,
+                  fromEmail: domain.fromEmail.trim(),
+                },
                 userId,
-                account.clientAccountId,
-                domain.clientDomainId,
-                uid,
-              ),
-              accountId: {
-                _id: account.clientAccountId,
-                userId,
-                title: account.title,
-                currency: account.currency,
-                accountNumber: account.accountNumber || undefined,
-              },
-              domainId: {
-                _id: domain.clientDomainId,
-                userId,
-                accountId: account.clientAccountId,
-                fromEmail: domain.fromEmail.trim(),
-              },
-              userId,
-              originalDate: new Date(date).toISOString(),
-              originalDescription,
-              originalAmount,
-              type: txnType,
-              typeConfidence,
-              isTransactionConfidence,
-              nerModel: nerModelName || undefined,
-              entities: processedEntities,
-              correctedEntities: null,
-              refunded: false,
-              emailBody: content,
-              createdAt: now,
-              updatedAt: now,
-            });
-            totalSynced++;
-            console.log("Processed transaction in memory");
+                originalDate: new Date(date).toISOString(),
+                originalDescription: originalDescription || content.substring(0, 80),
+                originalAmount,
+                type: txnType,
+                categoryId,
+                categoryName,
+                refunded: false,
+                emailBody: content,
+                createdAt: now,
+                updatedAt: now,
+              });
+              totalSynced++;
+              console.log("Processed transaction in memory");
           }
         }
 
@@ -386,11 +385,6 @@ export const syncAccountTransactions = async (
       syncStateUpdates,
     });
   } catch (error) {
-    if (error instanceof MlUnavailableError) {
-      return res.status(503).json({
-        message: error.message,
-      });
-    }
     console.error("Sync error:", error);
     if (isImapAuthError(error)) {
       return res.status(400).json({
@@ -399,196 +393,6 @@ export const syncAccountTransactions = async (
     }
     return res.status(500).json({
       message: "Internal server error during sync",
-    });
-  }
-};
-
-/**
- * TEST ENDPOINT: Fetch sample emails from a domain and classify them using the Python ML backend.
- * Used to validate the classifier model is working correctly.
- */
-export const testClassifier = async (
-  req: AuthRequest,
-  res: express.Response,
-) => {
-  try {
-    const userId = req.userId;
-    if (!userId) return res.sendStatus(401);
-
-    const { domainEmail, limit = 5 } = req.body;
-    if (!domainEmail) {
-      return res.status(400).json({ message: "domainEmail is required" });
-    }
-
-    // 1. Get linked email account
-    const linkedAccount = await getActiveLinkedAccountByUserId(userId);
-    if (!linkedAccount) {
-      return res
-        .status(400)
-        .json({ message: "Please link an email account first" });
-    }
-
-    const appPassword = decrypt(linkedAccount.appPassword);
-    const email = linkedAccount.email;
-    const provider = linkedAccount.provider === "icloud" ? "icloud" : "gmail";
-
-    // 2. Fetch sample emails from domain
-    console.log(`Fetching sample emails from ${domainEmail}...`);
-    const { emails } = await fetchEmailsIncrementally(
-      provider,
-      email,
-      appPassword,
-      domainEmail,
-      0, // lastUid
-      limit,
-    );
-
-    if (emails.length === 0) {
-      return res.status(404).json({
-        message: `No emails found from ${domainEmail}`,
-        domain: domainEmail,
-        samplesClassified: 0,
-        results: [],
-      });
-    }
-
-    // 3. Classify each email using Python ML backend
-    const pythonApiUrl = process.env.PYTHON_API_URL || "http://localhost:8000";
-    const results: TestResultEntry[] = [];
-
-    for (const { content, date } of emails) {
-      try {
-        // Step 1: Classify if email is a transaction or not
-        const classifyEmailResponse = await fetch(
-          `${pythonApiUrl}/ml/classify-email`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email_body: content }),
-          },
-        );
-
-        if (!classifyEmailResponse.ok) {
-          console.error(
-            `Classification failed: ${classifyEmailResponse.statusText}`,
-          );
-          results.push({
-            emailSnippet: content.substring(0, 100),
-            date,
-            error: "Email classification failed",
-          });
-          continue;
-        }
-
-        const classificationResult =
-          (await classifyEmailResponse.json()) as ClassifyEmailResponse;
-        const resultEntry: TestResultEntry = {
-          emailSnippet: content.substring(0, 100),
-          date,
-          emailClassification: {
-            label: classificationResult.label,
-            isTransaction: classificationResult.is_transaction,
-            confidence: classificationResult.confidence,
-            probabilities: classificationResult.probabilities,
-          },
-        };
-
-        console.log(
-          `Email: ${classificationResult.is_transaction ? "TXN" : "NON-TXN"} (conf=${classificationResult.confidence.toFixed(3)})`,
-        );
-
-        // Step 2: If it's a transaction, classify the type (debit or credit)
-        if (classificationResult.is_transaction) {
-          try {
-            const typeClassifyResponse = await fetch(
-              `${pythonApiUrl}/ml/classify-txn-type`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email_body: content }),
-              },
-            );
-
-            if (typeClassifyResponse.ok) {
-              const typeClassificationResult =
-                (await typeClassifyResponse.json()) as ClassifyTransactionTypeResponse;
-              resultEntry.typeClassification = {
-                label: typeClassificationResult.label,
-                type: typeClassificationResult.type,
-                confidence: typeClassificationResult.confidence,
-                probabilities: typeClassificationResult.probabilities,
-              };
-              console.log(
-                `  Type: ${typeClassificationResult.type?.toUpperCase()} (conf=${typeClassificationResult.confidence.toFixed(3)})`,
-              );
-            } else {
-              console.warn(
-                `Type classification failed: ${typeClassifyResponse.statusText}`,
-              );
-              resultEntry.typeClassification = {
-                error: "Type classification failed",
-              };
-            }
-          } catch (typeErr: any) {
-            console.error(
-              `Error classifying transaction type: ${typeErr.message}`,
-            );
-            resultEntry.typeClassification = {
-              error: typeErr.message,
-            };
-          }
-
-          // Step 3: Extract entities (AMOUNT, MERCHANT) for transactions
-          try {
-            const extractEntitiesResponse = await fetch(
-              `${pythonApiUrl}/ml/extract-entities`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email_body: content }),
-              },
-            );
-
-            if (extractEntitiesResponse.ok) {
-              const extractEntitiesResult =
-                (await extractEntitiesResponse.json()) as ExtractEntitiesResponse;
-              resultEntry.entities = extractEntitiesResult.entities;
-              console.log(
-                `  Entities: ${extractEntitiesResult.entities.map((e: EntityData) => `${e.label}(${e.text})`).join(", ")}`,
-              );
-            } else {
-              console.warn(
-                `Entity extraction failed: ${extractEntitiesResponse.statusText}`,
-              );
-              resultEntry.entities = [];
-            }
-          } catch (entityErr: any) {
-            console.error(`Error extracting entities: ${entityErr.message}`);
-            resultEntry.entities = [];
-          }
-        }
-
-        results.push(resultEntry);
-      } catch (err: any) {
-        console.error(`Error classifying email: ${err.message}`);
-        results.push({
-          emailSnippet: content.substring(0, 100),
-          date,
-          error: err.message,
-        });
-      }
-    }
-
-    return res.status(200).json({
-      message: "Classifier test completed",
-      domain: domainEmail,
-      samplesClassified: results.length,
-      results,
-    });
-  } catch (error) {
-    console.error("Classifier test error:", error);
-    return res.status(500).json({
-      message: "Internal server error during classifier test",
     });
   }
 };
