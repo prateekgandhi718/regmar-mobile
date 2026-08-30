@@ -1,10 +1,12 @@
 import dotenv from "dotenv";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { existsSync, readFileSync } from "fs";
+import { resolve } from "path";
 
 dotenv.config();
 
 export const GEMINI_BATCH_LIMIT = 10;
-const GEMINI_MODEL = "gemini-3.5-flash-lite";
+export const GEMINI_MODEL = "gemini-3.5-flash-lite";
 const GEMINI_MAX_RETRIES = 3;
 const GEMINI_TIMEOUT_MS = 20000;
 const APP_CATEGORIES = [
@@ -42,7 +44,7 @@ export type ParsedEmailTransaction = {
   type: "debit" | "credit" | "unknown";
   amount: number;
   merchant: string;
-  category: string;
+  category: (typeof APP_CATEGORIES)[number];
 };
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -70,7 +72,7 @@ const normalizeParsedTransaction = (item: any): ParsedEmailTransaction => {
   };
 };
 
-const buildStrictResponseSchema = () => ({
+const RESPONSE_SCHEMA = {
   type: "ARRAY",
   items: {
     type: "OBJECT",
@@ -89,7 +91,21 @@ const buildStrictResponseSchema = () => ({
     },
     required: ["is_transaction", "type", "amount", "merchant", "category"],
   },
-}) as any;
+} as any;
+
+const PROMPT_CANDIDATES = [
+  resolve(process.cwd(), "src/prompts/gemini-transaction-parser.md"),
+  resolve(process.cwd(), "backend/src/prompts/gemini-transaction-parser.md"),
+  resolve(__dirname, "../prompts/gemini-transaction-parser.md"),
+];
+
+const loadPromptTemplate = () => {
+  const promptPath = PROMPT_CANDIDATES.find((candidate) => existsSync(candidate));
+  if (!promptPath) {
+    throw new Error("Gemini transaction parser prompt file is missing");
+  }
+  return readFileSync(promptPath, "utf8");
+};
 
 const buildPrompt = (emailBodies: string[]) => {
   const emailEntries = emailBodies
@@ -98,43 +114,10 @@ const buildPrompt = (emailBodies: string[]) => {
     )
     .join("\n\n");
 
-  return `You are a financial email parsing engine.
-
-Return ONLY a JSON array with exactly one object per email, in the same order.
-
-Valid category names you must choose from exactly:
-${APP_CATEGORIES.join(", ")}
-
-Each object must match this schema exactly:
-{
-  "is_transaction": true,
-  "type": "debit",
-  "amount": 1234.56,
-  "merchant": "Uber",
-  "category": "Travel"
-}
-
-Rules:
-- Use "is_transaction": false only for non-transaction emails such as balance, statement, due date, limit, OTP, or informational messages.
-- For real money movement emails, set "is_transaction": true.
-- "type" must be either "credit" or "debit" for transaction emails.
-- "amount" must be a number, not a string.
-- "merchant" should be the cleanest merchant/payee name available, trimmed and concise.
-- "category" must be one of the valid category names above. Infer it from the merchant and context. Example: Uber, Ola, Air India, IndiGo, MakeMyTrip => Travel; Zomato, Swiggy, Blinkit => Food & Grocery or Restaurants depending on merchant; Google, Amazon => Shopping; Netflix, Spotify => Entertainment; electricity provider => Electricity; doctor, hospital, pharmacy => Medical.
-- If the email is not a transaction, return:
-  {
-    "is_transaction": false,
-    "type": "unknown",
-    "amount": 0,
-    "merchant": "",
-    "category": "Personal"
-  }
-- Do not add extra keys.
-- Do not wrap the output in markdown or code fences.
-- Return valid JSON only.
-
-Input emails:
-${emailEntries}`;
+  const template = loadPromptTemplate();
+  return template
+    .replace("{{CATEGORIES}}", APP_CATEGORIES.join(", "))
+    .replace("{{EMAILS}}", emailEntries);
 };
 
 const parseGeminiJsonArray = (rawText: string): any[] => {
@@ -174,7 +157,7 @@ export const processEmailsWithGemini = async (
     model: GEMINI_MODEL,
     generationConfig: {
       responseMimeType: "application/json",
-      responseSchema: buildStrictResponseSchema(),
+      responseSchema: RESPONSE_SCHEMA,
     },
   });
 
@@ -183,14 +166,13 @@ export const processEmailsWithGemini = async (
   let lastError: unknown;
   for (let attempt = 1; attempt <= GEMINI_MAX_RETRIES; attempt += 1) {
     try {
+      let timeout: NodeJS.Timeout | undefined;
       const result = await Promise.race([
         model.generateContent(prompt),
         new Promise<never>((_, reject) => {
-          setTimeout(() => {
-            reject(new Error(`Gemini request timed out after ${GEMINI_TIMEOUT_MS}ms`));
-          }, GEMINI_TIMEOUT_MS);
+          timeout = setTimeout(() => reject(new Error(`Gemini request timed out after ${GEMINI_TIMEOUT_MS}ms`)), GEMINI_TIMEOUT_MS);
         }),
-      ]);
+      ]).finally(() => timeout && clearTimeout(timeout));
 
       const text = result.response.text();
       const parsed = parseGeminiJsonArray(text);

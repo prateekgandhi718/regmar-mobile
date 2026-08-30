@@ -18,12 +18,7 @@ type StoredTransactionRow = {
   original_amount: number;
   new_amount: number | null;
   type: "credit" | "debit";
-  type_confidence: number | null;
-  is_transaction_confidence: number | null;
   user_type: "credit" | "debit" | null;
-  ner_model: string | null;
-  entities_encrypted: string;
-  corrected_entities_json: string | null;
   refunded: number;
   email_body_encrypted: string;
   category_id: string | null;
@@ -49,10 +44,7 @@ const getDb = () => {
 };
 
 const parseTransactionRow = async (row: StoredTransactionRow): Promise<Transaction> => {
-  const [emailBody, entitiesRaw] = await Promise.all([
-    decryptSensitive(row.email_body_encrypted),
-    decryptSensitive(row.entities_encrypted),
-  ]);
+  const emailBody = await decryptSensitive(row.email_body_encrypted);
 
   const categoryId: TransactionCategory | undefined =
     row.category_id && row.category_name
@@ -87,14 +79,7 @@ const parseTransactionRow = async (row: StoredTransactionRow): Promise<Transacti
     originalAmount: row.original_amount,
     newAmount: row.new_amount ?? undefined,
     type: row.type,
-    typeConfidence: row.type_confidence ?? undefined,
-    isTransactionConfidence: row.is_transaction_confidence ?? undefined,
     userType: row.user_type ?? undefined,
-    nerModel: row.ner_model ?? undefined,
-    entities: entitiesRaw ? JSON.parse(entitiesRaw) : [],
-    correctedEntities: row.corrected_entities_json
-      ? JSON.parse(row.corrected_entities_json)
-      : null,
     refunded: Boolean(row.refunded),
     emailBody,
     categoryId,
@@ -121,12 +106,7 @@ export const initTransactionsDb = async () => {
       original_amount REAL NOT NULL,
       new_amount REAL,
       type TEXT NOT NULL,
-      type_confidence REAL,
-      is_transaction_confidence REAL,
       user_type TEXT,
-      ner_model TEXT,
-      entities_encrypted TEXT NOT NULL,
-      corrected_entities_json TEXT,
       refunded INTEGER NOT NULL DEFAULT 0,
       email_body_encrypted TEXT NOT NULL,
       category_id TEXT,
@@ -169,10 +149,7 @@ export const upsertTransactions = async (transactions: Transaction[]) => {
   const db = await getDb();
 
   for (const tx of transactions) {
-    const [emailBodyEncrypted, entitiesEncrypted] = await Promise.all([
-      encryptSensitive(tx.emailBody || ""),
-      encryptSensitive(JSON.stringify(tx.entities || [])),
-    ]);
+    const emailBodyEncrypted = await encryptSensitive(tx.emailBody || "");
 
     await db.runAsync(
       `INSERT INTO ${TXN_TABLE} (
@@ -187,12 +164,7 @@ export const upsertTransactions = async (transactions: Transaction[]) => {
         original_amount,
         new_amount,
         type,
-        type_confidence,
-        is_transaction_confidence,
         user_type,
-        ner_model,
-        entities_encrypted,
-        corrected_entities_json,
         refunded,
         email_body_encrypted,
         category_id,
@@ -206,7 +178,7 @@ export const upsertTransactions = async (transactions: Transaction[]) => {
         need_completed_at,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(client_txn_id) DO UPDATE SET
         account_json = excluded.account_json,
         domain_json = excluded.domain_json,
@@ -218,12 +190,7 @@ export const upsertTransactions = async (transactions: Transaction[]) => {
         original_amount = excluded.original_amount,
         new_amount = excluded.new_amount,
         type = excluded.type,
-        type_confidence = excluded.type_confidence,
-        is_transaction_confidence = excluded.is_transaction_confidence,
         user_type = excluded.user_type,
-        ner_model = excluded.ner_model,
-        entities_encrypted = excluded.entities_encrypted,
-        corrected_entities_json = excluded.corrected_entities_json,
         refunded = excluded.refunded,
         email_body_encrypted = excluded.email_body_encrypted,
         category_id = excluded.category_id,
@@ -247,12 +214,7 @@ export const upsertTransactions = async (transactions: Transaction[]) => {
       tx.originalAmount,
       tx.newAmount ?? null,
       tx.type,
-      tx.typeConfidence ?? null,
-      tx.isTransactionConfidence ?? null,
       tx.userType ?? null,
-      tx.nerModel ?? null,
-      entitiesEncrypted,
-      tx.correctedEntities ? JSON.stringify(tx.correctedEntities) : null,
       tx.refunded ? 1 : 0,
       emailBodyEncrypted,
       tx.categoryId?._id ?? null,
@@ -411,8 +373,6 @@ export const createTransactionLocal = async (payload: LocalCreateTransactionPayl
     newAmount: payload.amount,
     type: payload.userType,
     userType: payload.userType,
-    entities: [],
-    correctedEntities: null,
     refunded: Boolean(payload.refunded),
     emailBody: "",
     categoryId: payload.categoryId ?? undefined,

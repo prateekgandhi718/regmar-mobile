@@ -13,13 +13,6 @@ export interface Account {
   accountNumber?: string;
 }
 
-export interface EntityData {
-  label: string;
-  start: number;
-  end: number;
-  text: string;
-}
-
 export interface TransactionCategory {
   _id: string;
   name: string;
@@ -47,12 +40,7 @@ export interface Transaction {
   originalAmount: number;
   newAmount?: number;
   type: "credit" | "debit";
-  typeConfidence?: number;
-  isTransactionConfidence?: number;
   userType?: "credit" | "debit";
-  nerModel?: string;
-  entities: EntityData[];
-  correctedEntities: EntityData[] | null;
   refunded: boolean;
   emailBody: string;
   categoryId?: TransactionCategory;

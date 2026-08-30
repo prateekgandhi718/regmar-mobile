@@ -5,7 +5,7 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "nodemon",
-    "build": "tsc",
+    "build": "tsc && mkdir -p dist/prompts && cp src/prompts/gemini-transaction-parser.md dist/prompts/",
     "start": "node dist/index.js"
   },
   "dependencies": {
