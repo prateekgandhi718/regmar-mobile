@@ -27,6 +27,10 @@ const isRefreshRequest = (args: string | FetchArgs) => {
   return String(args.url).includes("/auth/refresh-token");
 };
 
+// Refresh-token rotation is single-use on the backend. Sharing one in-flight
+// refresh prevents concurrent 401s from invalidating each other's new token.
+let refreshPromise: Promise<boolean> | null = null;
+
 export const baseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = async (
   args,
   api,
@@ -38,28 +42,29 @@ export const baseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryE
     return result;
   }
 
-  const refreshToken = await getRefreshToken();
-  if (!refreshToken) {
-    await clearAuthTokens();
-    api.dispatch(logout());
-    return result;
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const refreshToken = await getRefreshToken();
+      if (!refreshToken) return false;
+
+      const refreshResult = await rawBaseQuery(
+        { url: "/auth/refresh-token", method: "POST", body: { refreshToken } },
+        api,
+        extraOptions,
+      );
+      const refreshData = refreshResult.data as { accessToken?: string; refreshToken?: string } | undefined;
+
+      if (!refreshData?.accessToken || !refreshData.refreshToken) return false;
+
+      await saveAuthTokens(refreshData.accessToken, refreshData.refreshToken);
+      api.dispatch(setSession({ accessToken: refreshData.accessToken, refreshToken: refreshData.refreshToken }));
+      return true;
+    })().finally(() => {
+      refreshPromise = null;
+    });
   }
 
-  const refreshResult = await rawBaseQuery(
-    {
-      url: "/auth/refresh-token",
-      method: "POST",
-      body: { refreshToken },
-    },
-    api,
-    extraOptions,
-  );
-
-  const refreshData = refreshResult.data as { accessToken?: string; refreshToken?: string } | undefined;
-
-  if (refreshData?.accessToken && refreshData.refreshToken) {
-    await saveAuthTokens(refreshData.accessToken, refreshData.refreshToken);
-    api.dispatch(setSession({ accessToken: refreshData.accessToken, refreshToken: refreshData.refreshToken }));
+  if (await refreshPromise) {
     result = await rawBaseQuery(args, api, extraOptions);
   } else {
     await clearAuthTokens();

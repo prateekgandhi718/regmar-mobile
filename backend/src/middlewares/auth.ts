@@ -26,8 +26,11 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
     req.userId = decoded.userId;
     next();
   } catch (error) {
-    console.error(error);
+    // Expired access tokens are an expected part of normal rotation; avoid
+    // logging a full stack trace for them.
+    if ((error as { name?: string })?.name !== 'TokenExpiredError') {
+      console.error(error);
+    }
     res.status(401).json({ message: 'Invalid or expired access token' });
   }
 };
-
