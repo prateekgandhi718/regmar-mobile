@@ -20,17 +20,15 @@ export function AccountsScreen() {
       <View className="flex-1">
         <View className="w-full flex-row items-center justify-between px-6 pt-3">
           <Text style={[styles.headingText, { color: colors.primary }]}>Accounts</Text>
-          {!hasAccounts ? (
-            <Pressable
-              onPress={() => navigation.navigate("AccountSetup")}
-              style={styles.addButton}
-              accessibilityRole="button"
-              accessibilityLabel="Add account"
-              hitSlop={8}
-            >
-              <Feather name="plus" size={18} color="#E4E4E7" />
-            </Pressable>
-          ) : null}
+          <Pressable
+            onPress={() => navigation.navigate("AccountSetup")}
+            style={styles.addButton}
+            accessibilityRole="button"
+            accessibilityLabel="Add account"
+            hitSlop={8}
+          >
+            <Feather name="plus" size={18} color="#E4E4E7" />
+          </Pressable>
         </View>
 
         <View className="flex-1 px-6 pb-32 pt-6">

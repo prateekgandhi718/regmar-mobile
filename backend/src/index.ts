@@ -7,7 +7,6 @@ import dotenv from 'dotenv';
 import { connectDB } from './db/connection';
 import router from './router';
 import { seedCategories } from './helpers/seedCategories';
-import { seedNeeds } from './helpers/seedNeeds';
 import { loadStockMaster } from './helpers/stockMaster';
 
 dotenv.config();
@@ -40,7 +39,6 @@ server.listen(PORT, () => {
 
 connectDB().then(() => {
   seedCategories();
-  seedNeeds();
 });
 
 app.use('/', router());

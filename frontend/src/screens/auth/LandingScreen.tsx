@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { Animated, Easing, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { FiyLogo } from "@/components/fiy-logo";
+import { MocoLogo } from "@/components/moco-logo";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Landing">;
@@ -67,7 +67,7 @@ export function LandingScreen({ navigation }: Props) {
             transform: [{ scale: logoScale }],
           }}
         >
-          <FiyLogo size={88} />
+          <MocoLogo size={88} />
         </Animated.View>
       </View>
     </SafeAreaView>

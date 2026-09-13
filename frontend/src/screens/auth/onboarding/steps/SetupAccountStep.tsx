@@ -79,7 +79,7 @@ export function SetupAccountStep({
               className="rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-4 text-base text-zinc-100"
             />
             <Text className="mt-2 text-xs leading-5 text-zinc-400">
-              Enter only alert sender domains/emails (for example: `alerts@hdfcbank.net`). FIY will only access
+              Enter only alert sender domains/emails (for example: `alerts@hdfcbank.net`). moco will only access
               emails from the domains you add here and ignores all other emails.
             </Text>
           </View>

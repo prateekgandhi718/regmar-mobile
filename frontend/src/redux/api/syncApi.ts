@@ -1,9 +1,6 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { baseQuery } from "./baseQuery";
-import { buildSyncAccountsPayload, getSyncStateMap, upsertSyncStateUpdates } from "@/lib/accounts-db";
-import { clearStoredInvestment, getStoredInvestment, getStoredInvestmentPan, saveInvestment } from "@/lib/investments-storage";
 import type { InvestmentData } from "@/lib/investments-types";
-import { upsertTransactions } from "@/lib/transactions-db";
 import type { Transaction } from "@/lib/transactions-types";
 import { investmentsApi } from "./investmentsApi";
 import { transactionsApi } from "./transactionsApi";
@@ -28,24 +25,14 @@ export const syncApi = createApi({
     syncTransactions: builder.mutation<SyncTransactionsResponse, void>({
       queryFn: async (_arg, _api, _extraOptions, baseQueryFn) => {
         try {
-          const [accounts, syncState] = await Promise.all([
-            buildSyncAccountsPayload(),
-            getSyncStateMap(),
-          ]);
-
-          if (!accounts.length) {
-            return {
-              error: {
-                status: 400,
-                data: { message: "No bank accounts with transaction domains found. Please add an account first." },
-              } as never,
-            };
-          }
+          const accountsResponse = await baseQueryFn({ url: "/accounts" });
+          if (accountsResponse.error) return { error: accountsResponse.error as never };
+          const accounts = (accountsResponse.data as any[]).map(account => ({ ...account, clientAccountId: account._id, domains: (account.domainIds || []).map((domain: any) => ({ clientDomainId: domain._id, fromEmail: domain.fromEmail })) }));
 
           const response = await baseQueryFn({
             url: "/sync",
             method: "POST",
-            body: { accounts, syncState },
+            body: { accounts },
           });
 
           if (response.error) {
@@ -53,8 +40,6 @@ export const syncApi = createApi({
           }
 
           const data = response.data as SyncTransactionsResponse;
-          await upsertTransactions(data.transactions || []);
-          await upsertSyncStateUpdates(data.syncStateUpdates || {});
           return { data };
         } catch (error) {
           return { error: { status: "CUSTOM_ERROR", error: (error as Error).message } as never };
@@ -70,19 +55,14 @@ export const syncApi = createApi({
     syncInvestments: builder.mutation<SyncInvestmentsResponse, void>({
       queryFn: async (_arg, api, extraOptions, baseQueryFn) => {
         try {
-          const [pan, currentInvestment] = await Promise.all([
-            getStoredInvestmentPan(),
-            getStoredInvestment(),
-          ]);
+          const profileResponse = await baseQueryFn({ url: "/users/me" });
+          const pan = (profileResponse.data as { pan?: string } | undefined)?.pan;
 
           if (!pan) {
             return { error: { status: 400, data: { message: "Please save your PAN first." } } as never };
           }
 
-          const body: { pan: string; lastSyncedEmailUid?: number } = { pan };
-          if (currentInvestment?.lastSyncedEmailUid) {
-            body.lastSyncedEmailUid = currentInvestment.lastSyncedEmailUid;
-          }
+          const body: { pan: string } = { pan };
 
           const response = await baseQueryFn({
             url: "/sync/investments",
@@ -95,12 +75,6 @@ export const syncApi = createApi({
           }
 
           const data = response.data as SyncInvestmentsResponse;
-          if (data.investment) {
-            await saveInvestment(data.investment);
-          } else if (!data.alreadySynced) {
-            await clearStoredInvestment();
-          }
-
           return { data };
         } catch (error) {
           return { error: { status: "CUSTOM_ERROR", error: (error as Error).message } as never };

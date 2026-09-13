@@ -13,6 +13,9 @@ import { parseCASText } from "../helpers/casParser";
 import { formatInvestmentPayload } from "./investments";
 import { processEmailsWithGemini } from "../helpers/geminiBatchTxnParser";
 import { CategoryModel, getCategories } from "../db/categoryModel";
+import { createTransaction } from "../db/transactionModel";
+import { getSyncState, updateSyncState } from "../db/syncStateModel";
+import { getInvestmentByUserId, updateInvestmentByUserId } from "../db/investmentModel";
 
 type SyncedTransaction = {
   clientTxnId: string;
@@ -113,9 +116,10 @@ export const syncInvestments = async (
     }
 
     const clientLastSyncedEmailUid = Number(req.body?.lastSyncedEmailUid);
+    const storedInvestment = await getInvestmentByUserId(userId);
     if (
       Number.isFinite(clientLastSyncedEmailUid) &&
-      clientLastSyncedEmailUid === uid
+      (clientLastSyncedEmailUid === uid || storedInvestment?.lastSyncedEmailUid === uid)
     ) {
       return res.status(200).json({
         message: "Your investment portfolio is already up to date.",
@@ -189,6 +193,8 @@ export const syncInvestments = async (
         stocks: parsedData.stocks,
       });
 
+      await updateInvestmentByUserId(userId, investment);
+
       return res.status(200).json({
         message: "Statement synced and analyzed successfully",
         investment,
@@ -258,7 +264,8 @@ export const syncAccountTransactions = async (
     for (const account of accountsWithDomains) {
       for (const domain of account.domains) {
         if (!domain?.clientDomainId || !domain?.fromEmail?.trim()) continue;
-        const lastUid = Number(syncState[domain.clientDomainId] || 0);
+        const persistedState = await getSyncState(userId, domain.clientDomainId);
+        const lastUid = Number(syncState[domain.clientDomainId] || persistedState?.lastUid || 0);
 
         let since: Date | undefined;
 
@@ -370,11 +377,26 @@ export const syncAccountTransactions = async (
                 updatedAt: now,
               });
               totalSynced++;
+              await createTransaction({
+                clientTxnId: createClientTxnId(userId, account.clientAccountId, domain.clientDomainId, uid),
+                accountId: account.clientAccountId,
+                domainId: domain.clientDomainId,
+                userId,
+                originalDate: new Date(date),
+                originalDescription: originalDescription || content.substring(0, 80),
+                originalAmount,
+                type: txnType,
+                categoryId: categoryId?._id,
+                refunded: false,
+                emailBody: content,
+                isProcessed: true,
+              }).catch((error) => { if (error?.code !== 11000) throw error; });
               console.log("Processed transaction in memory");
           }
         }
 
         syncStateUpdates[domain.clientDomainId] = newLastUid;
+        await updateSyncState(userId, domain.clientDomainId, newLastUid);
       }
     }
 

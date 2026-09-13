@@ -1,5 +1,6 @@
 import express from 'express';
 import { AuthRequest } from '../middlewares/auth';
+import { getInvestmentByUserId } from '../db/investmentModel';
 
 const isStock = (isin?: string | null) =>
   typeof isin === 'string' && isin.startsWith('INE');
@@ -100,11 +101,8 @@ export const getMyInvestments = async (
   try {
     const userId = req.userId;
     if (!userId) return res.sendStatus(401);
-    return res.status(200).json({
-      message:
-        'Investments are stored locally on the device. Call POST /sync/investments to fetch latest data.',
-      investment: null,
-    });
+    const investment = await getInvestmentByUserId(userId);
+    return res.status(200).json(investment ? formatInvestmentPayload(investment.toObject() as any) : null);
 
   } catch (error) {
     console.error('Get investments error:', error);
