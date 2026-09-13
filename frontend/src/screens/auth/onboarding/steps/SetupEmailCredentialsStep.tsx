@@ -108,11 +108,11 @@ export function SetupEmailCredentialsStep({
             What is an app password?
           </Text>
           <Text className="mt-2 text-sm leading-6 text-zinc-300">
-            It is a one-time generated key from your email provider, used by apps like FIY when your account has extra
+            It is a one-time generated key from your email provider, used by apps like moco when your account has extra
             security enabled.
           </Text>
           <Text className="mt-2 text-sm leading-6 text-zinc-300">
-            FIY only uses this key to read transaction emails. Your credentials are transmitted securely, and you can
+            moco only uses this key to read transaction emails. Your credentials are transmitted securely, and you can
             revoke the app password anytime from your provider settings.
           </Text>
         </View>

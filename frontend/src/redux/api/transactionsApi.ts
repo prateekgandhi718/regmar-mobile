@@ -1,6 +1,6 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { baseQuery } from "./baseQuery";
-import type { NeedSelection, Transaction, TransactionCategory, TransactionFilter } from "@/lib/transactions-types";
+import type { Transaction, TransactionCategory, TransactionFilter } from "@/lib/transactions-types";
 
 type UpdateTransactionPayload = {
   clientTxnId: string;
@@ -19,7 +19,6 @@ type UpdateTransactionPayload = {
     accountNumber?: string;
     fromEmail?: string;
   };
-  needSelection?: NeedSelection | null;
 };
 
 type CreateTransactionPayload = {

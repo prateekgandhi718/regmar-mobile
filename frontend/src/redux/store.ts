@@ -4,7 +4,6 @@ import { authApi } from "./api/authApi";
 import { categoriesApi } from "./api/categoriesApi";
 import { investmentsApi } from "./api/investmentsApi";
 import { linkedAccountsApi } from "./api/linkedAccountsApi";
-import { needsApi } from "./api/needsApi";
 import { syncApi } from "./api/syncApi";
 import { transactionsApi } from "./api/transactionsApi";
 import authReducer from "./features/authSlice";
@@ -17,7 +16,6 @@ export const store = configureStore({
     [categoriesApi.reducerPath]: categoriesApi.reducer,
     [investmentsApi.reducerPath]: investmentsApi.reducer,
     [linkedAccountsApi.reducerPath]: linkedAccountsApi.reducer,
-    [needsApi.reducerPath]: needsApi.reducer,
     [syncApi.reducerPath]: syncApi.reducer,
     [transactionsApi.reducerPath]: transactionsApi.reducer,
   },
@@ -28,7 +26,6 @@ export const store = configureStore({
       categoriesApi.middleware,
       investmentsApi.middleware,
       linkedAccountsApi.middleware,
-      needsApi.middleware,
       syncApi.middleware,
       transactionsApi.middleware,
     ),

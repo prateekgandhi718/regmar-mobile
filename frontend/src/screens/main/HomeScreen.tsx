@@ -5,7 +5,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { FiyLogo } from "@/components/fiy-logo";
+import { MocoLogo } from "@/components/moco-logo";
 import { EditTransactionDrawer } from "@/components/transactions/EditTransactionDrawer";
 import { useTiltPress } from "@/hooks/use-tilt-press";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
@@ -34,11 +34,12 @@ const createShortArcPath = (center: number, radius: number, startAngle: number, 
 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { data: transactions = [] } = useGetTransactionsQuery();
   const { data: linkedAccounts = [] } = useGetLinkedAccountsQuery();
+  const { data: transactions = [] } = useGetTransactionsQuery();
   const { width } = useWindowDimensions();
   const [isRecordDrawerOpen, setIsRecordDrawerOpen] = useState(false);
   const hasLinkedEmail = linkedAccounts.some((account) => isLinkedAccountActive(account.isActive));
+  const totalLogged = transactions.length;
 
   const rotation = useRef(new Animated.Value(0)).current;
   const plusPress = useTiltPress({ pressedScale: 0.93, tiltDegrees: 0.8, perspective: 900 });
@@ -68,28 +69,6 @@ export function HomeScreen() {
       segments,
     };
   }, [ringRadius, ringSize]);
-
-  const metrics = useMemo(() => {
-    const uniqueNeedWords = new Set<string>();
-
-    for (const tx of transactions) {
-      const selectedWord = tx.needSelection?.word?.trim().toLowerCase();
-      if (selectedWord) {
-        uniqueNeedWords.add(selectedWord);
-        continue;
-      }
-
-      const selectedLabel = tx.needSelection?.label?.trim().toLowerCase();
-      if (selectedLabel) {
-        uniqueNeedWords.add(selectedLabel);
-      }
-    }
-
-    return {
-      uniqueNeeds: uniqueNeedWords.size,
-      totalLogged: transactions.length,
-    };
-  }, [transactions]);
 
   useEffect(() => {
     rotation.setValue(0);
@@ -122,25 +101,17 @@ export function HomeScreen() {
       <View style={styles.container}>
         <View style={styles.topBar}>
           <View style={styles.logoWrap}>
-            <FiyLogo size={32} />
+            <MocoLogo size={32} />
           </View>
 
           <View style={styles.pillsWrap}>
             <Pressable
-              onPress={() => navigation.navigate("NeedsLogged", { uniqueNeeds: metrics.uniqueNeeds })}
-              style={styles.pill}
-              accessibilityRole="button"
-              accessibilityLabel="View unique needs details"
-            >
-              <Text style={styles.pillText}>{metrics.uniqueNeeds} unique needs</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => navigation.navigate("TotalTransactions", { totalTransactions: metrics.totalLogged })}
+              onPress={() => navigation.navigate("TotalTransactions", { totalTransactions: totalLogged })}
               style={styles.pill}
               accessibilityRole="button"
               accessibilityLabel="View total transactions details"
             >
-              <Text style={styles.pillText}>{metrics.totalLogged} total txns</Text>
+              <Text style={styles.pillText}>{totalLogged} total txns</Text>
             </Pressable>
           </View>
 

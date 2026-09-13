@@ -20,8 +20,7 @@ export function SetupHiStep({ transition, onBack, onContinue }: SetupHiStepProps
           className="mt-8 text-[62px] leading-[66px] text-zinc-50"
           style={{ fontFamily: DISPLAY_FONT_FAMILY, fontWeight: "700" }}
         >
-          Hi and welcome
-          {"\n"}to FIY!
+          Welcome to moco
         </Text>
         <Text className="mt-5 text-xl leading-8 text-zinc-300">
           Let’s take a few minutes to get you setup. Make sure you’re ready for a few simple steps.

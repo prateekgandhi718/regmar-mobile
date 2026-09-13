@@ -1,9 +1,6 @@
 import { useMemo, useState } from "react";
 import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import { CategoryIcon } from "@/components/category-icon";
@@ -25,7 +22,6 @@ import {
   isDebitTransaction,
 } from "@/components/transactions/transaction-utils";
 import type { Transaction } from "@/lib/transactions-types";
-import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { useGetAccountsQuery } from "@/redux/api/accountsApi";
 import { isLinkedAccountActive, useGetLinkedAccountsQuery } from "@/redux/api/linkedAccountsApi";
 import { useSyncTransactionsMutation } from "@/redux/api/syncApi";
@@ -52,22 +48,8 @@ const ICON_CHIP_SIZE = 54;
 const ICON_SIZE = 24;
 const formatFullCurrency = (value: number) => `₹${formatAmount(Math.abs(value))}`;
 
-const hexToRgba = (hex: string, alpha: number) => {
-  const normalized = hex.replace("#", "");
-  const full = normalized.length === 3 ? normalized.split("").map((char) => `${char}${char}`).join("") : normalized;
-  if (full.length !== 6) return `rgba(212,212,216,${alpha})`;
-
-  const int = Number.parseInt(full, 16);
-  const r = (int >> 16) & 255;
-  const g = (int >> 8) & 255;
-  const b = int & 255;
-  return `rgba(${r},${g},${b},${alpha})`;
-};
-
-const getNeedAccent = (transaction: Transaction) => transaction.needSelection?.color || FALLBACK_ICON_COLOR;
 
 export function TransactionsScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useColorTheme();
   const [syncTransactions, { isLoading: isSyncing }] = useSyncTransactionsMutation();
   const { data: linkedAccounts, isLoading: isLinkedLoading } = useGetLinkedAccountsQuery();
@@ -159,25 +141,6 @@ export function TransactionsScreen() {
     }
   };
 
-  const handleNeedCheckIn = (transaction: Transaction) => {
-    const amount = getEffectiveAmount(transaction);
-    const merchant = getMerchantName(transaction);
-    const date = getEffectiveDate(transaction);
-    const isDebit = isDebitTransaction(transaction);
-
-    navigation.navigate("TransactionNeedCheckIn", {
-      transaction: {
-        clientTxnId: transaction.clientTxnId,
-        merchant,
-        amount,
-        type: isDebit ? "debit" : "credit",
-        date: date.toISOString(),
-        needSelection: transaction.needSelection,
-        categoryName: transaction.categoryId?.name,
-        accountTitle: transaction.accountId?.title,
-      },
-    });
-  };
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-black">
@@ -280,7 +243,6 @@ export function TransactionsScreen() {
         transaction={selectedTransaction}
         open={isTransactionDrawerOpen}
         onClose={() => setIsTransactionDrawerOpen(false)}
-        onNeedCheckIn={handleNeedCheckIn}
         onEdit={() => {
           setIsTransactionDrawerOpen(false);
           setIsEditDrawerOpen(true);
@@ -308,16 +270,15 @@ function TransactionRow({ transaction, onPress, onTagPress }: TransactionRowProp
   const merchant = getMerchantName(transaction);
   const amount = getEffectiveAmount(transaction);
   const isDebit = isDebitTransaction(transaction);
-  const iconColor = getNeedAccent(transaction);
-  const iconChipBorderColor = transaction.needSelection?.color ? hexToRgba(iconColor, 0.48) : "rgba(255,255,255,0.2)";
-  const iconChipBackgroundColor = transaction.needSelection?.color ? hexToRgba(iconColor, 0.16) : "rgba(255,255,255,0.08)";
+  const iconColor = FALLBACK_ICON_COLOR;
+  const iconChipBorderColor = "rgba(255,255,255,0.2)";
+  const iconChipBackgroundColor = "rgba(255,255,255,0.08)";
 
   const { animatedStyle, onLayout, onPressIn, onPressOut } = useTiltPress();
 
   return (
     <Pressable onPress={() => onPress(transaction)} onPressIn={onPressIn} onPressOut={onPressOut} onLayout={onLayout}>
       <Animated.View style={[styles.transactionRow, animatedStyle]}>
-        {transaction.needSelection?.color ? <NeedTintOverlay color={transaction.needSelection.color} /> : null}
         <View style={styles.rowContent}>
           {transaction.categoryId ? (
             <View style={styles.iconCell}>
@@ -353,23 +314,6 @@ function TransactionRow({ transaction, onPress, onTagPress }: TransactionRowProp
         </View>
       </Animated.View>
     </Pressable>
-  );
-}
-
-type NeedTintOverlayProps = {
-  color: string;
-};
-
-function NeedTintOverlay({ color }: NeedTintOverlayProps) {
-  return (
-    <LinearGradient
-      pointerEvents="none"
-      colors={[hexToRgba(color, 0.26), hexToRgba(color, 0.11), "rgba(0,0,0,0)"]}
-      locations={[0, 0.36, 1]}
-      start={{ x: 0, y: 0.5 }}
-      end={{ x: 1, y: 0.5 }}
-      style={styles.gradientOverlay}
-    />
   );
 }
 
@@ -490,14 +434,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     minHeight: 54,
-  },
-  gradientOverlay: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    zIndex: 0,
   },
   iconCell: {
     width: 60,

@@ -22,7 +22,6 @@ import {
   useGetLinkedAccountsQuery,
   useUnlinkAccountMutation,
 } from "@/redux/api/linkedAccountsApi";
-import { needsApi } from "@/redux/api/needsApi";
 import { syncApi } from "@/redux/api/syncApi";
 import { useClearTransactionsMutation } from "@/redux/api/transactionsApi";
 import { transactionsApi } from "@/redux/api/transactionsApi";
@@ -84,7 +83,6 @@ export function SettingsScreen() {
               dispatch(categoriesApi.util.resetApiState());
               dispatch(investmentsApi.util.resetApiState());
               dispatch(linkedAccountsApi.util.resetApiState());
-              dispatch(needsApi.util.resetApiState());
               dispatch(accountsApi.util.resetApiState());
               dispatch(syncApi.util.resetApiState());
               dispatch(transactionsApi.util.resetApiState());

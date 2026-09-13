@@ -8,7 +8,7 @@ const TransactionSchema = new mongoose.Schema({
   originalAmount: Number, newAmount: Number, type: { type: String, enum: ['credit', 'debit'] },
   userType: { type: String, enum: ['credit', 'debit', null] }, refunded: { type: Boolean, default: false },
   categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' }, emailBody: String,
-  isProcessed: { type: Boolean, default: true }, needSelection: mongoose.Schema.Types.Mixed,
+  isProcessed: { type: Boolean, default: true },
 }, { timestamps: true });
 export const TransactionModel = mongoose.model('Transaction', TransactionSchema);
 export const getTransactionsByUserId = (userId: string, filter: Record<string, unknown> = {}) => TransactionModel.find({ userId, ...filter }).sort({ newDate: -1, originalDate: -1 }).populate('categoryId', 'name').populate('accountId').populate('domainId');

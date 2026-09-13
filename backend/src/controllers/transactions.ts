@@ -17,7 +17,7 @@ export const getUserTransactions = async (req: AuthRequest, res: express.Respons
   return res.json(await getTransactionsByUserId(req.userId!, filter));
 };
 export const updateTransaction = async (req: AuthRequest, res: express.Response) => {
-  const allowed = ['newDate', 'newDescription', 'newAmount', 'refunded', 'userType', 'categoryId', 'needSelection'];
+  const allowed = ['newDate', 'newDescription', 'newAmount', 'refunded', 'userType', 'categoryId'];
   const values = Object.fromEntries(Object.entries(req.body || {}).filter(([key]) => allowed.includes(key)));
   if (values.categoryId && typeof values.categoryId === 'object') values.categoryId = (values.categoryId as { _id?: string })._id;
   const tx = await updateTransactionById(req.params.id, req.userId!, values);

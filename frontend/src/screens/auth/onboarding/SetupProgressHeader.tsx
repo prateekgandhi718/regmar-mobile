@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { Pressable, View } from "react-native";
-import { FiyLogo } from "@/components/fiy-logo";
+import { MocoLogo } from "@/components/moco-logo";
 
 type SetupProgressHeaderProps = {
   current: number;
@@ -23,7 +23,7 @@ export function SetupProgressHeader({ current, total, onBack }: SetupProgressHea
         </Pressable>
       ) : (
         <View className="h-10 w-10 items-center justify-center">
-          <FiyLogo size={24} />
+          <MocoLogo size={24} />
         </View>
       )}
       <View className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-800">
