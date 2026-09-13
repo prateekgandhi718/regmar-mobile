@@ -235,7 +235,7 @@ export function EditTransactionDrawer({ transaction, open, onClose, mode = "edit
           amount: absoluteAmount,
           date: dateTimeValue.toISOString(),
           userType: isCredit ? "credit" : "debit",
-          accountId: !isManualEntry ? selectedAccountId || undefined : undefined,
+          accountId: selectedAccountId || undefined,
           accountMeta: selectedAccount && !isManualEntry
             ? {
                 _id: selectedAccount.id,

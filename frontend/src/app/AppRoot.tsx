@@ -2,7 +2,6 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { AppProviders } from "@/components/providers/AppProviders";
-import { initAccountsDb } from "@/lib/accounts-db";
 import { API_BASE_URL } from "@/lib/api";
 import {
   getAccessToken,
@@ -12,7 +11,6 @@ import {
   getStoredName,
   saveAuthTokens,
 } from "@/lib/auth-storage";
-import { initTransactionsDb } from "@/lib/transactions-db";
 import { AppNavigator } from "@/navigation/AppNavigator";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { setBootstrapped, setSession } from "@/redux/features/authSlice";
@@ -33,7 +31,6 @@ function AuthBootstrap() {
 
     const bootstrap = async () => {
       try {
-        await Promise.all([initTransactionsDb(), initAccountsDb()]);
         const deviceUuid = await getOrCreateDeviceUuid();
         const [accessToken, refreshToken, name, onboardingCompleted] = await Promise.all([
           getAccessToken(),

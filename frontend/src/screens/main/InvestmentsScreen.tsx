@@ -22,7 +22,7 @@ import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { useTiltPress } from "@/hooks/use-tilt-press";
 import type { HistoricalValuation, InvestmentData } from "@/lib/investments-types";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
-import { isValidPan, sanitizePan } from "@/lib/investments-storage";
+import { isValidPan, sanitizePan } from "@/lib/investments-validation";
 import { isLinkedAccountActive, useGetLinkedAccountsQuery } from "@/redux/api/linkedAccountsApi";
 import { useGetInvestmentPanQuery, useGetMyInvestmentsQuery, useSaveInvestmentPanMutation } from "@/redux/api/investmentsApi";
 import { useSyncInvestmentsMutation } from "@/redux/api/syncApi";
@@ -102,7 +102,7 @@ function PanGateCard({
       </View>
 
       <View className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-900/50 px-4 py-4">
-        <Text className="text-sm leading-6 text-zinc-400">Your PAN and parsed investment data stay stored on this phone only.</Text>
+        <Text className="text-sm leading-6 text-zinc-400">Your PAN and parsed investment data are securely stored with your account.</Text>
       </View>
 
       <Pressable

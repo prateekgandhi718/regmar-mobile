@@ -1,7 +1,6 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { baseQuery } from "./baseQuery";
 import type { InvestmentData } from "@/lib/investments-types";
-import { getStoredInvestment, getStoredInvestmentPan, saveInvestmentPan } from "@/lib/investments-storage";
 
 type SaveInvestmentPanPayload = {
   pan: string;
@@ -34,36 +33,17 @@ export const investmentsApi = createApi({
   tagTypes: ["Investment", "InvestmentPan", "Optimization"],
   endpoints: (builder) => ({
     getMyInvestments: builder.query<InvestmentData | null, void>({
-      queryFn: async () => {
-        try {
-          const data = await getStoredInvestment();
-          return { data };
-        } catch (error) {
-          return { error: { status: "CUSTOM_ERROR", error: (error as Error).message } as never };
-        }
-      },
+      query: () => "/investments/me",
       providesTags: ["Investment"],
     }),
     getInvestmentPan: builder.query<string | null, void>({
-      queryFn: async () => {
-        try {
-          const data = await getStoredInvestmentPan();
-          return { data };
-        } catch (error) {
-          return { error: { status: "CUSTOM_ERROR", error: (error as Error).message } as never };
-        }
-      },
+      query: () => "/users/me",
+      transformResponse: (response: { pan?: string }) => response.pan || null,
       providesTags: ["InvestmentPan"],
     }),
     saveInvestmentPan: builder.mutation<string, SaveInvestmentPanPayload>({
-      queryFn: async ({ pan }) => {
-        try {
-          const savedPan = await saveInvestmentPan(pan);
-          return { data: savedPan };
-        } catch (error) {
-          return { error: { status: 400, data: { message: (error as Error).message } } as never };
-        }
-      },
+      query: ({ pan }) => ({ url: "/users/profile", method: "PATCH", body: { pan } }),
+      transformResponse: (response: { pan?: string }) => response.pan || "",
       invalidatesTags: ["InvestmentPan"],
     }),
     optimizeUltimatePortfolio: builder.mutation<UltimatePortfolioOptimizationResponse, OptimizePortfolioRequest>({

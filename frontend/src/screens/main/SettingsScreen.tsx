@@ -6,10 +6,7 @@ import { Alert, ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
-import { clearAllAccountsLocal } from "@/lib/accounts-db";
 import { clearAllAuthLocalStorage } from "@/lib/auth-storage";
-import { clearInvestmentStorage } from "@/lib/investments-storage";
-import { clearAllTransactionsLocal } from "@/lib/transactions-db";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { logout } from "@/redux/features/authSlice";
 import { useAppDispatch } from "@/redux/hooks";
@@ -45,7 +42,7 @@ export function SettingsScreen() {
 
   const handleClearTransactions = () => {
     if (isClearingTransactions) return;
-    Alert.alert("Clear local transactions?", "This removes all synced transactions from local storage.", [
+    Alert.alert("Clear transactions?", "This removes all synced transactions from your account.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Clear",
@@ -67,29 +64,20 @@ export function SettingsScreen() {
     if (isResettingAppData) return;
 
     Alert.alert(
-      "Reset app data?",
-      "This removes your cloud user/account data and clears all local app data, then returns to onboarding.",
+      "Delete my data?",
+      "This permanently deletes your transactions, accounts, investments, linked email credentials, and profile from MongoDB. You will return to onboarding.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Reset",
+          text: "Delete",
           style: "destructive",
           onPress: async () => {
-            let didDeleteCloudData = false;
             try {
               setIsResettingAppData(true);
-              try {
-                await deleteMe().unwrap();
-                didDeleteCloudData = true;
-              } catch {
-                // Cloud delete endpoint may be unavailable on older backend builds.
-              }
+              await deleteMe().unwrap();
 
               await Promise.all([
                 clearAllAuthLocalStorage(),
-                clearInvestmentStorage(),
-                clearAllTransactionsLocal(),
-                clearAllAccountsLocal(),
               ]);
               // Clear all in-memory RTK query caches so no stale local/cloud data remains visible.
               dispatch(authApi.util.resetApiState());
@@ -102,9 +90,8 @@ export function SettingsScreen() {
               dispatch(transactionsApi.util.resetApiState());
               dispatch(logout());
               Toast.show({
-                type: didDeleteCloudData ? "success" : "info",
-                text1: didDeleteCloudData ? "App data reset" : "Local data reset",
-                text2: didDeleteCloudData ? undefined : "Cloud account delete endpoint not available on current backend.",
+                type: "success",
+                text1: "Your data was deleted",
               });
             } catch (error) {
               console.error("Failed to reset app data", error);
@@ -242,14 +229,14 @@ export function SettingsScreen() {
 
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Data Controls</Text>
-            <Text style={styles.cardDescription}>Use these actions for local sync testing or full reset when onboarding again.</Text>
+            <Text style={styles.cardDescription}>Manage and permanently remove the data stored with your account.</Text>
 
             <Pressable onPress={handleClearTransactions} disabled={isClearingTransactions} style={styles.button}>
               <Text style={styles.buttonText}>{isClearingTransactions ? "Clearing..." : "Clear transactions"}</Text>
             </Pressable>
 
             <Pressable onPress={handleResetAppData} disabled={isResettingAppData} style={[styles.button, { marginTop: 10 }]}>
-              <Text style={styles.buttonText}>{isResettingAppData ? "Resetting..." : "Reset app data"}</Text>
+              <Text style={styles.buttonText}>{isResettingAppData ? "Deleting..." : "Delete my data"}</Text>
             </Pressable>
           </View>
         </ScrollView>
