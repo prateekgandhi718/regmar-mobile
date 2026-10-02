@@ -1,320 +1,350 @@
-import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Easing, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { useState } from "react";
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { MocoLogo } from "@/components/moco-logo";
 import { getOrCreateDeviceUuid, saveAuthTokens, setOnboardingCompleted, setStoredName } from "@/lib/auth-storage";
-import { useAddAccountMutation, useGetAccountsQuery } from "@/redux/api/accountsApi";
 import { useRegisterDeviceMutation } from "@/redux/api/authApi";
-import {
-  isLinkedAccountActive,
-  LinkedAccountProvider,
-  useGetLinkedAccountsQuery,
-  useLinkEmailAccountMutation,
-} from "@/redux/api/linkedAccountsApi";
+import type { LinkedAccountProvider } from "@/redux/api/linkedAccountsApi";
+import { useLinkEmailAccountMutation } from "@/redux/api/linkedAccountsApi";
 import { setOnboardingComplete, setSession } from "@/redux/features/authSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { SetupAccountStep } from "./onboarding/steps/SetupAccountStep";
-import { SetupEmailCredentialsStep } from "./onboarding/steps/SetupEmailCredentialsStep";
-import { SetupEmailProviderStep } from "./onboarding/steps/SetupEmailProviderStep";
-import { SetupHiStep } from "./onboarding/steps/SetupHiStep";
-import { SetupNameStep } from "./onboarding/steps/SetupNameStep";
-import type { OnboardingStep } from "./onboarding/types";
+import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
 
-const parseDomainNames = (value: string) =>
-  value
-    .split(",")
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
+const getAppPasswordUrl = (provider: LinkedAccountProvider) =>
+  provider === "icloud" ? "https://appleid.apple.com/account/manage" : "https://myaccount.google.com/apppasswords";
+
+const PROVIDER_OPTIONS = [
+  { id: "gmail" as const, label: "Gmail", icon: "mail" as const },
+  { id: "icloud" as const, label: "iCloud", icon: "cloud" as const },
+];
 
 export function OnboardingScreen() {
+  const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
-
-  const [step, setStep] = useState<OnboardingStep>("setupHi");
-  const [name, setName] = useState("");
-  const [nameError, setNameError] = useState<string | null>(null);
-
-  const [emailProvider, setEmailProvider] = useState<LinkedAccountProvider>("gmail");
+  const [provider, setProvider] = useState<LinkedAccountProvider>("gmail");
   const [email, setEmail] = useState("");
   const [appPassword, setAppPassword] = useState("");
-  const [emailError, setEmailError] = useState<string | null>(null);
-  const [bankName, setBankName] = useState("");
-  const [bankDomains, setBankDomains] = useState("");
-  const [bankLast4, setBankLast4] = useState("");
-  const [bankError, setBankError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [registerDevice, { isLoading: isRegistering }] = useRegisterDeviceMutation();
+  const [linkEmailAccount, { isLoading: isLinking }] = useLinkEmailAccountMutation();
 
-  const [registerDevice, { isLoading: isRegisteringDevice }] = useRegisterDeviceMutation();
-  const [linkEmailAccount, { isLoading: isLinkingEmail }] = useLinkEmailAccountMutation();
-  const [addAccount, { isLoading: isSavingAccount }] = useAddAccountMutation();
+  const isLoading = isRegistering || isLinking;
 
-  const { data: linkedAccounts = [], isLoading: isLoadingLinkedAccounts } = useGetLinkedAccountsQuery(undefined, {
-    skip: !isAuthenticated,
-  });
-  const { data: accounts = [], isLoading: isLoadingAccounts } = useGetAccountsQuery(undefined, {
-    skip: !isAuthenticated,
-  });
-  const transitionX = useRef(new Animated.Value(0)).current;
-  const transitionOpacity = useRef(new Animated.Value(1)).current;
-  const isTransitioningRef = useRef(false);
-
-  const animateIntoStep = (next: OnboardingStep) => {
-    setStep(next);
-    transitionX.setValue(46);
-    transitionOpacity.setValue(0);
-    Animated.parallel([
-      Animated.timing(transitionX, {
-        toValue: 0,
-        duration: 280,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(transitionOpacity, {
-        toValue: 1,
-        duration: 250,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
-
-  const transitionToStep = (next: OnboardingStep) => {
-    if (next === step || isTransitioningRef.current) return;
-    isTransitioningRef.current = true;
-    Animated.parallel([
-      Animated.timing(transitionX, {
-        toValue: -38,
-        duration: 170,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(transitionOpacity, {
-        toValue: 0,
-        duration: 150,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      animateIntoStep(next);
-      isTransitioningRef.current = false;
-    });
-  };
-
-  const completeOnboarding = async () => {
-    await setOnboardingCompleted(true);
-    dispatch(setOnboardingComplete(true));
-  };
-
-  useEffect(() => {
-    if (!isAuthenticated || isLoadingLinkedAccounts || isLoadingAccounts) return;
-
-    const hasLinkedEmail = linkedAccounts.some((account) => isLinkedAccountActive(account.isActive));
-    const hasAccount = accounts.length > 0;
-
-    if (hasLinkedEmail && hasAccount && step !== "setupAccount") {
-      void completeOnboarding();
-      return;
-    }
-
-    if (hasLinkedEmail && !hasAccount && step !== "setupAccount") {
-      animateIntoStep("setupAccount");
-      return;
-    }
-
-    if (!hasLinkedEmail && step !== "setupEmailProvider" && step !== "setupEmailCredentials" && step !== "setupAccount") {
-      animateIntoStep("setupEmailProvider");
-    }
-  }, [accounts.length, isAuthenticated, isLoadingAccounts, isLoadingLinkedAccounts, linkedAccounts, step]);
-
-  const handleRegisterAndContinue = async () => {
-    const trimmedName = name.trim();
-
-    if (!trimmedName) {
-      setNameError("Please enter your name.");
-      return;
-    }
-
-    setNameError(null);
-
-    try {
-      const deviceUuid = await getOrCreateDeviceUuid();
-      const response = await registerDevice({ deviceUuid, name: trimmedName }).unwrap();
-
-      await Promise.all([
-        setStoredName(trimmedName),
-        saveAuthTokens(response.accessToken, response.refreshToken),
-        setOnboardingCompleted(false),
-      ]);
-
-      dispatch(
-        setSession({
-          accessToken: response.accessToken,
-          refreshToken: response.refreshToken,
-          onboardingComplete: false,
-        }),
-      );
-
-      animateIntoStep("setupEmailProvider");
-    } catch (requestError) {
-      console.error("Device registration failed:", requestError);
-      setNameError("Could not create your account. Please try again.");
-    }
-  };
-
-  const handleLinkEmailAndContinue = async () => {
+  const handleSubmit = async () => {
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedPassword = appPassword.replace(/\s+/g, "");
 
-    if (!normalizedEmail) {
-      setEmailError("Email is required.");
-      return;
-    }
-
     if (normalizedPassword.length !== 16) {
-      setEmailError("App password must be exactly 16 characters.");
+      setError("App password must be exactly 16 characters.");
       return;
     }
 
-    setEmailError(null);
+    setError(null);
 
     try {
+      if (!isAuthenticated) {
+        const deviceUuid = await getOrCreateDeviceUuid();
+        const response = await registerDevice({ deviceUuid, name: normalizedEmail }).unwrap();
+
+        await Promise.all([
+          setStoredName(normalizedEmail),
+          saveAuthTokens(response.accessToken, response.refreshToken),
+          setOnboardingCompleted(false),
+        ]);
+
+        dispatch(
+          setSession({
+            accessToken: response.accessToken,
+            refreshToken: response.refreshToken,
+            onboardingComplete: false,
+          }),
+        );
+      }
+
       await linkEmailAccount({
-        provider: emailProvider,
+        provider,
         email: normalizedEmail,
         appPassword: normalizedPassword,
       }).unwrap();
-      animateIntoStep("setupAccount");
+
+      await setOnboardingCompleted(true);
+      dispatch(setOnboardingComplete(true));
     } catch (requestError) {
       const apiError = requestError as { data?: { message?: string } };
-      setEmailError(apiError?.data?.message || "Unable to connect to your mailbox. Check your credentials.");
+      setError(apiError?.data?.message || "Unable to connect to your mailbox. Check your credentials.");
     }
   };
 
-  const handleSkipEmailLinking = async () => {
-    setEmailError(null);
-    await completeOnboarding();
-  };
+  return (
+    <SafeAreaView edges={["bottom"]} style={styles.safeArea}>
+      <View style={[styles.container, { paddingTop: Math.max(insets.top, 12) + 18 }]}>
+        <View style={styles.headerRow}>
+          <MocoLogo size={34} />
+          <Text style={styles.headerTitle}>Connect your email</Text>
+          <View style={styles.headerSpacer} />
+        </View>
 
-  const handleSaveAccount = async () => {
-    const normalizedTitle = bankName.trim();
-    const domainNames = parseDomainNames(bankDomains);
-    const normalizedLast4 = bankLast4.trim();
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.hero}>
+            <Text style={styles.title}>Start with your email</Text>
+            <Text style={styles.subtitle}>
+              Enter your email and app password to securely connect your mailbox and sync your transactions.
+            </Text>
+          </View>
 
-    if (!normalizedTitle) {
-      setBankError("Bank name is required.");
-      return;
-    }
+          <View style={styles.providerRow} accessibilityRole="tablist">
+            {PROVIDER_OPTIONS.map((item) => {
+              const isActive = provider === item.id;
 
-    if (normalizedLast4 && !/^\d{4}$/.test(normalizedLast4)) {
-      setBankError("Last 4 digits must be exactly 4 numbers.");
-      return;
-    }
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() => {
+                    setProvider(item.id);
+                    if (error) setError(null);
+                  }}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: isActive }}
+                  style={[styles.providerPill, isActive ? styles.providerPillActive : null]}
+                >
+                  <Feather name={item.icon} size={15} color={isActive ? "#F7E26B" : "#D4D4D8"} />
+                  <Text style={[styles.providerPillText, isActive ? styles.providerPillTextActive : null]}>{item.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
-    setBankError(null);
+          <View style={styles.formBlock}>
+            <View>
+              <Text style={styles.fieldLabel}>Email</Text>
+              <TextInput
+                value={email}
+                onChangeText={(value) => {
+                  setEmail(value);
+                  if (error) setError(null);
+                }}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                placeholder={provider === "icloud" ? "name@icloud.com" : "name@gmail.com"}
+                placeholderTextColor="#71717A"
+                style={styles.fieldInput}
+              />
+            </View>
 
-    try {
-      await addAccount({
-        title: normalizedTitle,
-        currency: "INR",
-        domainNames,
-        accountNumber: normalizedLast4 || undefined,
-      }).unwrap();
-      await completeOnboarding();
-    } catch (requestError) {
-      const apiError = requestError as { data?: { message?: string } };
-      setBankError(apiError?.data?.message || "Could not create account.");
-    }
-  };
+            <View>
+              <Text style={styles.fieldLabel}>App password</Text>
+              <TextInput
+                value={appPassword}
+                onChangeText={(value) => {
+                  setAppPassword(value.replace(/\s+/g, "").slice(0, 16));
+                  if (error) setError(null);
+                }}
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry
+                placeholder="16-character app password"
+                placeholderTextColor="#71717A"
+                style={styles.fieldInput}
+              />
+            </View>
+          </View>
 
-  const transition = { opacity: transitionOpacity, translateX: transitionX };
+          <Pressable
+            onPress={() =>
+              Linking.openURL(getAppPasswordUrl(provider)).catch(() => setError("Could not open the app password instructions."))
+            }
+            style={styles.helpButton}
+          >
+            <Feather name="external-link" size={16} color="#F4F4F5" />
+            <Text style={styles.helpButtonText}>Create an app password</Text>
+          </Pressable>
 
-  if (isAuthenticated && (isLoadingLinkedAccounts || isLoadingAccounts)) {
-    return (
-      <View className="flex-1 items-center justify-center bg-black">
-        <ActivityIndicator color="#F4F4F5" />
+          <View style={styles.infoCard}>
+            <Text style={styles.infoTitle}>What is an app password?</Text>
+            <Text style={styles.infoText}>
+              It is a generated key from your email provider that lets moco securely read transaction emails when two-factor protection is enabled.
+            </Text>
+            <Text style={styles.infoText}>You can revoke it from your provider settings at any time.</Text>
+          </View>
+
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        </ScrollView>
+
+        <Pressable
+          onPress={handleSubmit}
+          disabled={isLoading}
+          style={[styles.submitButton, isLoading ? styles.submitButtonDisabled : null]}
+        >
+          {isLoading ? <ActivityIndicator color="#111827" /> : <Text style={styles.submitButtonText}>Continue</Text>}
+        </Pressable>
       </View>
-    );
-  }
-
-  if (step === "setupHi") {
-    return <SetupHiStep transition={transition} onContinue={() => transitionToStep("setupName")} />;
-  }
-
-  if (step === "setupName") {
-    return (
-      <SetupNameStep
-        transition={transition}
-        name={name}
-        error={nameError}
-        isLoading={isRegisteringDevice}
-        onNameChange={(value) => {
-          setName(value);
-          if (nameError) setNameError(null);
-        }}
-        onContinue={handleRegisterAndContinue}
-      />
-    );
-  }
-
-  if (step === "setupEmailProvider") {
-    return (
-      <SetupEmailProviderStep
-        transition={transition}
-        onSkip={handleSkipEmailLinking}
-        onSelectProvider={(provider) => {
-          setEmailProvider(provider);
-          if (emailError) setEmailError(null);
-          transitionToStep("setupEmailCredentials");
-        }}
-      />
-    );
-  }
-
-  if (step === "setupEmailCredentials") {
-    return (
-      <SetupEmailCredentialsStep
-        transition={transition}
-        provider={emailProvider}
-        email={email}
-        appPassword={appPassword}
-        error={emailError}
-        isLoading={isLinkingEmail}
-        onEmailChange={(value) => {
-          setEmail(value);
-          if (emailError) setEmailError(null);
-        }}
-        onAppPasswordChange={(value) => {
-          setAppPassword(value);
-          if (emailError) setEmailError(null);
-        }}
-        onSkip={handleSkipEmailLinking}
-        onContinue={handleLinkEmailAndContinue}
-      />
-    );
-  }
-
-  if (step === "setupAccount") {
-    return (
-      <SetupAccountStep
-        transition={transition}
-        bankName={bankName}
-        domains={bankDomains}
-        last4={bankLast4}
-        error={bankError}
-        isSaving={isSavingAccount}
-        onBankNameChange={(value) => {
-          setBankName(value);
-          if (bankError) setBankError(null);
-        }}
-        onDomainsChange={(value) => {
-          setBankDomains(value);
-          if (bankError) setBankError(null);
-        }}
-        onLast4Change={(value) => {
-          setBankLast4(value.replace(/\D+/g, "").slice(0, 4));
-          if (bankError) setBankError(null);
-        }}
-        onSave={handleSaveAccount}
-      />
-    );
-  }
-
-  return <SetupNameStep transition={transition} name={name} error={nameError} onNameChange={setName} onContinue={handleRegisterAndContinue} />;
+    </SafeAreaView>
+  );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#09090B",
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingBottom: 14,
+    backgroundColor: "#09090B",
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerTitle: {
+    color: "#E4E4E7",
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  headerSpacer: {
+    width: 34,
+  },
+  scrollView: {
+    flex: 1,
+    marginTop: 34,
+  },
+  scrollContent: {
+    paddingBottom: 24,
+  },
+  hero: {
+    marginBottom: 34,
+  },
+  providerRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 24,
+  },
+  providerPill: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#3F3F46",
+    borderRadius: 14,
+    backgroundColor: "#18181B",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  providerPillActive: {
+    borderColor: "rgba(247,226,107,0.72)",
+    backgroundColor: "rgba(247,226,107,0.14)",
+  },
+  providerPillText: {
+    color: "#D4D4D8",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  providerPillTextActive: {
+    color: "#F7E26B",
+  },
+  title: {
+    color: "#FAFAFA",
+    fontSize: 44,
+    lineHeight: 50,
+    fontFamily: DISPLAY_FONT_FAMILY,
+    fontWeight: "700",
+  },
+  subtitle: {
+    color: "#D4D4D8",
+    fontSize: 18,
+    lineHeight: 28,
+    marginTop: 16,
+  },
+  formBlock: {
+    gap: 18,
+  },
+  fieldLabel: {
+    color: "#D4D4D8",
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  fieldInput: {
+    borderWidth: 1,
+    borderColor: "#27272A",
+    borderRadius: 16,
+    backgroundColor: "#09090B",
+    color: "#F4F4F5",
+    fontSize: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  helpButton: {
+    marginTop: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#3F3F46",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  helpButtonText: {
+    color: "#F4F4F5",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  infoCard: {
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: "#27272A",
+    borderRadius: 16,
+    backgroundColor: "#09090B",
+    padding: 16,
+  },
+  infoTitle: {
+    color: "#F4F4F5",
+    fontSize: 16,
+    fontFamily: DISPLAY_FONT_FAMILY,
+    fontWeight: "700",
+  },
+  infoText: {
+    color: "#D4D4D8",
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 8,
+  },
+  errorText: {
+    color: "#F87171",
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 14,
+  },
+  submitButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 999,
+    backgroundColor: "#F4F4F5",
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+  },
+  submitButtonDisabled: {
+    backgroundColor: "#A1A1AA",
+  },
+  submitButtonText: {
+    color: "#111827",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+});

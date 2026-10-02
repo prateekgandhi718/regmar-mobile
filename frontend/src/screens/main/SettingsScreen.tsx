@@ -64,7 +64,7 @@ export function SettingsScreen() {
 
     Alert.alert(
       "Delete my data?",
-      "This permanently deletes your transactions, accounts, investments, linked email credentials, and profile from MongoDB. You will return to onboarding.",
+      "This permanently deletes your transactions, accounts, investments, linked email credentials, and profile from MongoDB. You will return to the email connection screen.",
       [
         { text: "Cancel", style: "cancel" },
         {
