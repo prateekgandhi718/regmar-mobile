@@ -2,7 +2,6 @@ import { DarkTheme, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { MainTabsNavigator } from "@/navigation/MainTabsNavigator";
 import { useAppSelector } from "@/redux/hooks";
-import { LandingScreen } from "@/screens/auth/LandingScreen";
 import { OnboardingScreen } from "@/screens/auth/OnboardingScreen";
 import { MutualFundsScreen } from "@/screens/main/MutualFundsScreen";
 import { EmailCredentialsScreen } from "@/screens/main/EmailCredentialsScreen";
@@ -12,7 +11,6 @@ import { StocksScreen } from "@/screens/main/StocksScreen";
 import { TotalTransactionsScreen } from "@/screens/main/TotalTransactionsScreen";
 
 export type RootStackParamList = {
-  Landing: undefined;
   Onboarding: undefined;
   MainTabs: undefined;
   TotalTransactions: {
@@ -35,13 +33,13 @@ export function AppNavigator() {
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const hasCompletedOnboarding = useAppSelector((state) => state.auth.hasCompletedOnboarding);
   const shouldShowMain = isAuthenticated && hasCompletedOnboarding;
-  const navigatorKey = shouldShowMain ? "main" : isAuthenticated ? "auth_onboarding" : "guest";
+  const navigatorKey = shouldShowMain ? "main" : "auth";
 
   return (
     <NavigationContainer theme={DarkTheme}>
       <Stack.Navigator
         key={navigatorKey}
-        initialRouteName={shouldShowMain ? "MainTabs" : isAuthenticated ? "Onboarding" : "Landing"}
+        initialRouteName={shouldShowMain ? "MainTabs" : "Onboarding"}
         screenOptions={{
           animation: "slide_from_right",
         }}
@@ -106,15 +104,6 @@ export function AppNavigator() {
           </>
         ) : (
           <>
-            {!isAuthenticated ? (
-              <Stack.Screen
-                name="Landing"
-                component={LandingScreen}
-                options={{
-                  headerShown: false,
-                }}
-              />
-            ) : null}
             <Stack.Screen
               name="Onboarding"
               component={OnboardingScreen}
