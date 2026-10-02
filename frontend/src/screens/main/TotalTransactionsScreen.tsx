@@ -7,7 +7,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { CategoryIcon } from "@/components/category-icon";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { useGetCategoriesQuery } from "@/redux/api/categoriesApi";
-import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
+import { PAPER, PAPER_FONTS } from "@/theme/newspaper-theme";
 
 type TotalTransactionsRouteProp = RouteProp<RootStackParamList, "TotalTransactions">;
 type TotalTransactionsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -111,21 +111,21 @@ export function TotalTransactionsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#09090B",
+    backgroundColor: PAPER.page,
   },
   container: {
     flex: 1,
-    backgroundColor: "#09090B",
+    backgroundColor: PAPER.page,
     paddingHorizontal: 24,
     paddingBottom: 12,
   },
   closeButton: {
     width: 56,
     height: 56,
-    borderRadius: 999,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(228,228,231,0.2)",
-    backgroundColor: "rgba(24,24,27,0.84)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 54,
@@ -137,23 +137,24 @@ const styles = StyleSheet.create({
     marginBottom: 38,
   },
   metricLabel: {
-    color: "#FAFAFA",
-    fontFamily: DISPLAY_FONT_FAMILY,
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.display,
     fontWeight: "700",
     fontSize: 64,
     lineHeight: 66,
     maxWidth: "50%",
   },
   metricValue: {
-    color: "#FAFAFA",
-    fontFamily: DISPLAY_FONT_FAMILY,
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.mastheadBold,
     fontWeight: "700",
     fontSize: 168,
     lineHeight: 154,
     letterSpacing: -2,
   },
   copy: {
-    color: "#E5E7EB",
+    color: PAPER.secondary,
+    fontFamily: PAPER_FONTS.body,
     fontWeight: "500",
     marginBottom: 22,
     maxWidth: "96%",
@@ -168,10 +169,10 @@ const styles = StyleSheet.create({
     columnGap: 7,
   },
   tile: {
-    borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderRadius: 0,
+    backgroundColor: PAPER.highlight,
     borderWidth: 1,
-    borderColor: "rgba(228,228,231,0.15)",
+    borderColor: PAPER.hairline,
     alignItems: "center",
     justifyContent: "center",
   },

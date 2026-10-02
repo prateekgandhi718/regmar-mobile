@@ -6,6 +6,7 @@ import type { Transaction } from "@/lib/transactions-types";
 import { useGetCategoriesQuery } from "@/redux/api/categoriesApi";
 import { useDeleteTransactionMutation, useUpdateTransactionMutation } from "@/redux/api/transactionsApi";
 import { formatAmount, getEffectiveAmount, getMerchantName, isDebitTransaction } from "@/components/transactions/transaction-utils";
+import { PAPER, PAPER_FONTS } from "@/theme/newspaper-theme";
 
 type QuickTagDrawerProps = {
   transaction: Transaction | null;
@@ -88,7 +89,7 @@ export function QuickTagDrawer({ transaction, open, onClose }: QuickTagDrawerPro
             <Text style={styles.sectionTitle}>Categories</Text>
             {isLoadingCategories ? (
               <View style={styles.loadingWrap}>
-                <ActivityIndicator size="small" color="#D4D4D8" />
+                <ActivityIndicator size="small" color={PAPER.ink} />
               </View>
             ) : (
               <View style={styles.categoryWrap}>
@@ -101,7 +102,7 @@ export function QuickTagDrawer({ transaction, open, onClose }: QuickTagDrawerPro
                       onPress={() => handleSelectCategory(category._id, category.name)}
                       style={[styles.categoryChip, isSelected ? styles.categoryChipActive : null]}
                     >
-                      <CategoryIcon name={category.name} color="#D4D4D8" size={16} />
+                      <CategoryIcon name={category.name} color={PAPER.secondary} size={16} />
                       <Text style={styles.categoryChipText}>{category.name.toUpperCase()}</Text>
                     </Pressable>
                   );
@@ -133,7 +134,8 @@ const styles = StyleSheet.create({
     width: 44,
   },
   cancelText: {
-    color: "#E4E4E7",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.metaMedium,
     fontWeight: "700",
     fontSize: 14,
   },
@@ -142,10 +144,10 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   summaryCard: {
-    borderRadius: 24,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "#111114",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
     padding: 16,
     gap: 8,
   },
@@ -157,21 +159,22 @@ const styles = StyleSheet.create({
   },
   summaryMerchant: {
     flex: 1,
-    color: "#F4F4F5",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.display,
     fontSize: 16,
-    fontWeight: "700",
   },
   summaryAmount: {
+    fontFamily: PAPER_FONTS.display,
     fontSize: 18,
-    fontWeight: "800",
   },
   summaryMeta: {
-    color: "#A1A1AA",
+    color: PAPER.muted,
+    fontFamily: PAPER_FONTS.meta,
     fontSize: 12,
     letterSpacing: 0.5,
   },
   debitText: {
-    color: "#F4F4F5",
+    color: PAPER.ink,
   },
   creditText: {
     color: "#A7F3D0",
@@ -180,9 +183,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sectionTitle: {
-    color: "#F4F4F5",
-    fontSize: 14,
-    fontWeight: "800",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.metaBold,
+    fontSize: 11,
     letterSpacing: 0.7,
     textTransform: "uppercase",
   },
@@ -200,29 +203,29 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    borderRadius: 999,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.page,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   categoryChipActive: {
-    backgroundColor: "rgba(255,255,255,0.14)",
-    borderColor: "rgba(255,255,255,0.38)",
+    backgroundColor: PAPER.highlight,
+    borderColor: PAPER.ink,
   },
   categoryChipText: {
-    color: "#F4F4F5",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.metaMedium,
     fontSize: 11,
-    fontWeight: "700",
     letterSpacing: 0.3,
   },
   deleteButton: {
     marginTop: 2,
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(239,68,68,0.4)",
-    backgroundColor: "rgba(127,29,29,0.22)",
+    borderColor: PAPER.accent,
+    backgroundColor: "transparent",
     paddingVertical: 10,
     alignItems: "center",
   },
@@ -230,8 +233,8 @@ const styles = StyleSheet.create({
     opacity: 0.72,
   },
   deleteText: {
-    color: "#FB7185",
+    color: PAPER.accent,
+    fontFamily: PAPER_FONTS.metaBold,
     fontSize: 12,
-    fontWeight: "700",
   },
 });

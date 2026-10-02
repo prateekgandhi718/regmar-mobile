@@ -1,16 +1,23 @@
-import { Pressable, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { PAPER, PAPER_FONTS } from "@/theme/newspaper-theme";
 
 export function MarketingFooter() {
   return (
-    <View className="w-full border-t border-zinc-200 px-6 py-4 dark:border-zinc-800">
-      <View className="flex-row items-center justify-center gap-5">
+    <View style={styles.footer}>
+      <View style={styles.row}>
         <Pressable>
-          <Text className="text-sm text-zinc-600 dark:text-zinc-300">Privacy Policy</Text>
+          <Text style={styles.text}>Privacy Policy</Text>
         </Pressable>
         <Pressable>
-          <Text className="text-sm text-zinc-600 dark:text-zinc-300">Terms & Conditions</Text>
+          <Text style={styles.text}>Terms & Conditions</Text>
         </Pressable>
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  footer: { width: "100%", borderTopWidth: 1, borderTopColor: PAPER.hairline, paddingHorizontal: 24, paddingVertical: 16 },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 20 },
+  text: { color: PAPER.muted, fontFamily: PAPER_FONTS.meta, fontSize: 12 },
+});

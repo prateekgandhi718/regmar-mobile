@@ -20,6 +20,7 @@ import {
   getMerchantName,
   isDebitTransaction,
 } from "@/components/transactions/transaction-utils";
+import { PAPER, PAPER_FONTS } from "@/theme/newspaper-theme";
 
 type EditTransactionDrawerProps = {
   transaction: Transaction | null;
@@ -335,7 +336,7 @@ export function EditTransactionDrawer({ transaction, open, onClose, mode = "edit
               <View style={styles.headerSpacer} />
             ) : (
               <Pressable onPress={handleDelete} disabled={isDeleting} style={styles.deleteIconButton}>
-                <Feather name="trash-2" size={18} color="#FB7185" />
+                <Feather name="trash-2" size={18} color={PAPER.accent} />
               </Pressable>
             )}
           </View>
@@ -356,7 +357,7 @@ export function EditTransactionDrawer({ transaction, open, onClose, mode = "edit
               value={description}
               onChangeText={setDescription}
               placeholder="Merchant description"
-              placeholderTextColor="#71717A"
+              placeholderTextColor={PAPER.muted}
               style={styles.input}
             />
 
@@ -382,7 +383,7 @@ export function EditTransactionDrawer({ transaction, open, onClose, mode = "edit
                         : "No accounts available"}
                     </Text>
                   </View>
-                  <Feather name={isAccountDropdownOpen ? "chevron-up" : "chevron-down"} size={18} color="#D4D4D8" />
+                  <Feather name={isAccountDropdownOpen ? "chevron-up" : "chevron-down"} size={18} color={PAPER.secondary} />
                 </Pressable>
 
                 {isAccountDropdownOpen && accountOptions.length ? (
@@ -410,7 +411,7 @@ export function EditTransactionDrawer({ transaction, open, onClose, mode = "edit
                             {account.title}
                             {account.accountNumber && account.id !== MANUAL_ENTRY_ACCOUNT_ID ? ` (${account.accountNumber.slice(-4)})` : ""}
                           </Text>
-                          {isSelected ? <Feather name="check" size={16} color="#F4F4F5" /> : null}
+                          {isSelected ? <Feather name="check" size={16} color={PAPER.ink} /> : null}
                         </Pressable>
                       );
                     })}
@@ -481,14 +482,14 @@ export function EditTransactionDrawer({ transaction, open, onClose, mode = "edit
             <Text style={styles.inputLabel}>Amount</Text>
             <View style={styles.amountWrap}>
               <Pressable onPress={toggleAmountSign} style={[styles.amountSignButton, isCredited ? styles.amountSignCredit : styles.amountSignDebit]}>
-                <Feather name={isCredited ? "minus-circle" : isDebited ? "plus-circle" : "info"} size={18} color="#FFFFFF" />
+                <Feather name={isCredited ? "minus-circle" : isDebited ? "plus-circle" : "info"} size={18} color={PAPER.page} />
               </Pressable>
               <TextInput
                 value={amountInput}
                 onChangeText={setAmountInput}
                 keyboardType="decimal-pad"
                 placeholder="Enter amount"
-                placeholderTextColor="#71717A"
+                placeholderTextColor={PAPER.muted}
                 style={styles.amountInput}
               />
             </View>
@@ -522,7 +523,7 @@ export function EditTransactionDrawer({ transaction, open, onClose, mode = "edit
                     onPress={() => setSelectedCategoryId((current) => (current === category._id ? null : category._id))}
                     style={[styles.categoryChip, isSelected ? styles.categoryChipActive : null]}
                   >
-                    <CategoryIcon name={category.name} color="#D4D4D8" size={16} />
+                    <CategoryIcon name={category.name} color={PAPER.secondary} size={16} />
                     <Text style={styles.categoryText}>{category.name.toUpperCase()}</Text>
                   </Pressable>
                 );
@@ -556,65 +557,69 @@ const styles = StyleSheet.create({
   deleteIconButton: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(127,29,29,0.2)",
+    backgroundColor: PAPER.accentSoft,
     borderWidth: 1,
-    borderColor: "rgba(239,68,68,0.35)",
+    borderColor: PAPER.accent,
   },
   content: {
     gap: 12,
     paddingBottom: 12,
   },
   sectionCard: {
-    borderRadius: 18,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "#111114",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
     padding: 14,
     gap: 10,
   },
   sectionLabel: {
-    color: "#A1A1AA",
+    color: PAPER.muted,
+    fontFamily: PAPER_FONTS.metaBold,
     fontSize: 11,
     textTransform: "uppercase",
     letterSpacing: 0.7,
     fontWeight: "700",
   },
   originalLine: {
-    color: "#E4E4E7",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.bodyMedium,
     fontSize: 13,
     fontWeight: "600",
   },
   inputLabel: {
-    color: "#A1A1AA",
+    color: PAPER.muted,
+    fontFamily: PAPER_FONTS.metaBold,
     fontSize: 11,
     textTransform: "uppercase",
     letterSpacing: 0.7,
     fontWeight: "700",
   },
   input: {
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    backgroundColor: "rgba(9,9,11,0.6)",
-    color: "#F4F4F5",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.meta,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
     justifyContent: "center",
   },
   inputText: {
-    color: "#F4F4F5",
+    color: PAPER.ink,
     fontSize: 14,
   },
   accountPickerWrap: {
     position: "relative",
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    backgroundColor: "rgba(9,9,11,0.6)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
     overflow: "visible",
     zIndex: 40,
   },
@@ -633,7 +638,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   accountPickerText: {
-    color: "#F4F4F5",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.metaMedium,
     fontSize: 14,
     fontWeight: "600",
     flex: 1,
@@ -643,10 +649,10 @@ const styles = StyleSheet.create({
     top: 52,
     left: 0,
     right: 0,
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    backgroundColor: "rgba(9,9,11,0.96)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
     zIndex: 80,
     maxHeight: 220,
     overflow: "hidden",
@@ -659,21 +665,21 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   accountOptionRowActive: {
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: PAPER.highlight,
   },
   accountOptionText: {
     flex: 1,
-    color: "#F4F4F5",
+    color: PAPER.ink,
     fontSize: 13,
     fontWeight: "600",
   },
   accountLogoBadge: {
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.highlight,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -683,7 +689,7 @@ const styles = StyleSheet.create({
     height: 16,
   },
   accountLogoFallback: {
-    color: "#E4E4E7",
+    color: PAPER.ink,
     fontSize: 11,
     fontWeight: "700",
   },
@@ -691,10 +697,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   pickerWrap: {
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    backgroundColor: "rgba(9,9,11,0.6)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
     overflow: "hidden",
   },
   pickerActions: {
@@ -703,23 +709,23 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   pickerDoneButton: {
-    borderRadius: 9,
-    backgroundColor: "rgba(255,255,255,0.16)",
+    borderRadius: 0,
+    backgroundColor: PAPER.highlight,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
   pickerDoneText: {
-    color: "#F4F4F5",
+    color: PAPER.ink,
     fontSize: 12,
     fontWeight: "700",
   },
   amountWrap: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    backgroundColor: "rgba(9,9,11,0.6)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
     paddingHorizontal: 10,
     paddingVertical: 8,
     gap: 10,
@@ -727,26 +733,27 @@ const styles = StyleSheet.create({
   amountSignButton: {
     width: 34,
     height: 34,
-    borderRadius: 11,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#52525B",
+    backgroundColor: PAPER.muted,
   },
   amountSignDebit: {
-    backgroundColor: "#FB7185",
+    backgroundColor: PAPER.accent,
   },
   amountSignCredit: {
-    backgroundColor: "#10B981",
+    backgroundColor: PAPER.ink,
   },
   amountInput: {
     flex: 1,
-    color: "#F4F4F5",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.metaBold,
     fontSize: 16,
     fontWeight: "800",
     paddingVertical: 0,
   },
   amountHint: {
-    color: "#71717A",
+    color: PAPER.muted,
     fontSize: 11,
     fontWeight: "700",
     textTransform: "uppercase",
@@ -768,10 +775,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(24,24,27,0.7)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.highlight,
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
@@ -780,12 +787,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   refundedTitle: {
-    color: "#E4E4E7",
+    color: PAPER.ink,
     fontSize: 12,
     fontWeight: "700",
   },
   refundedSubtitle: {
-    color: "#A1A1AA",
+    color: PAPER.muted,
     fontSize: 11,
   },
   categoryWrap: {
@@ -797,19 +804,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    borderRadius: 999,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.page,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   categoryChipActive: {
-    backgroundColor: "rgba(255,255,255,0.14)",
-    borderColor: "rgba(255,255,255,0.38)",
+    backgroundColor: PAPER.highlight,
+    borderColor: PAPER.ink,
   },
   categoryText: {
-    color: "#F4F4F5",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.metaMedium,
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 0.3,
@@ -822,26 +830,26 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 12,
+    borderRadius: 0,
     paddingVertical: 12,
     borderWidth: 1,
   },
   cancelButton: {
-    borderColor: "rgba(255,255,255,0.22)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.page,
   },
   saveButton: {
-    borderColor: "rgba(255,255,255,0.3)",
-    backgroundColor: "rgba(255,255,255,0.16)",
+    borderColor: PAPER.ink,
+    backgroundColor: PAPER.ink,
   },
   cancelText: {
-    color: "#D4D4D8",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.metaBold,
     fontSize: 13,
-    fontWeight: "700",
   },
   saveText: {
-    color: "#F4F4F5",
+    color: PAPER.page,
+    fontFamily: PAPER_FONTS.metaBold,
     fontSize: 13,
-    fontWeight: "700",
   },
 });

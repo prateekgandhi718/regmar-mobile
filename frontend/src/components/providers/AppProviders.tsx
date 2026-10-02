@@ -5,6 +5,7 @@ import type { ToastConfig } from "react-native-toast-message";
 import { ReduxProvider } from "@/redux/provider";
 import { ColorThemeProvider } from "./color-theme-provider";
 import { ThemeProvider } from "./theme-provider";
+import { PAPER, PAPER_FONTS } from "@/theme/newspaper-theme";
 
 type AppProvidersProps = {
   children: ReactNode;
@@ -15,15 +16,15 @@ const topInset = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 44;
 function ThemedToastProvider() {
   const toastConfig: ToastConfig = {
     success: ({ text1, text2 }) => (
-      <View style={{ width: "100%", backgroundColor: "#41b12e", paddingTop: topInset + 10, paddingBottom: 12, paddingHorizontal: 16 }}>
-        {!!text1 && <Text style={{ color: "#ffffff", textAlign: "center", fontSize: 17, fontWeight: "700" }}>{text1}</Text>}
-        {!!text2 && <Text style={{ color: "#ecfdf5", textAlign: "center", fontSize: 15, marginTop: 4 }}>{text2}</Text>}
+      <View style={{ width: "100%", backgroundColor: PAPER.ink, paddingTop: topInset + 10, paddingBottom: 12, paddingHorizontal: 16 }}>
+        {!!text1 && <Text style={{ color: PAPER.page, textAlign: "center", fontFamily: PAPER_FONTS.metaBold, fontSize: 15 }}>{text1}</Text>}
+        {!!text2 && <Text style={{ color: PAPER.highlight, textAlign: "center", fontFamily: PAPER_FONTS.meta, fontSize: 13, marginTop: 4 }}>{text2}</Text>}
       </View>
     ),
     error: ({ text1, text2 }) => (
-      <View style={{ width: "100%", backgroundColor: "#db4437", paddingTop: topInset + 10, paddingBottom: 12, paddingHorizontal: 16 }}>
-        {!!text1 && <Text style={{ color: "#ffffff", textAlign: "center", fontSize: 17, fontWeight: "700" }}>{text1}</Text>}
-        {!!text2 && <Text style={{ color: "#fef2f2", textAlign: "center", fontSize: 15, marginTop: 4 }}>{text2}</Text>}
+      <View style={{ width: "100%", backgroundColor: PAPER.accent, paddingTop: topInset + 10, paddingBottom: 12, paddingHorizontal: 16 }}>
+        {!!text1 && <Text style={{ color: PAPER.page, textAlign: "center", fontFamily: PAPER_FONTS.metaBold, fontSize: 15 }}>{text1}</Text>}
+        {!!text2 && <Text style={{ color: PAPER.page, textAlign: "center", fontFamily: PAPER_FONTS.meta, fontSize: 13, marginTop: 4 }}>{text2}</Text>}
       </View>
     ),
   };

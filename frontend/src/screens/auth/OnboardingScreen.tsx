@@ -9,7 +9,7 @@ import type { LinkedAccountProvider } from "@/redux/api/linkedAccountsApi";
 import { useLinkEmailAccountMutation } from "@/redux/api/linkedAccountsApi";
 import { setOnboardingComplete, setSession } from "@/redux/features/authSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
+import { PAPER, PAPER_FONTS } from "@/theme/newspaper-theme";
 
 const getAppPasswordUrl = (provider: LinkedAccountProvider) =>
   provider === "icloud" ? "https://appleid.apple.com/account/manage" : "https://myaccount.google.com/apppasswords";
@@ -81,7 +81,7 @@ export function OnboardingScreen() {
     <SafeAreaView edges={["bottom"]} style={styles.safeArea}>
       <View style={[styles.container, { paddingTop: Math.max(insets.top, 12) + 18 }]}>
         <View style={styles.headerRow}>
-          <MocoLogo size={34} />
+          <MocoLogo size={34} monochrome />
           <Text style={styles.headerTitle}>Connect your email</Text>
           <View style={styles.headerSpacer} />
         </View>
@@ -115,7 +115,7 @@ export function OnboardingScreen() {
                   accessibilityState={{ selected: isActive }}
                   style={[styles.providerPill, isActive ? styles.providerPillActive : null]}
                 >
-                  <Feather name={item.icon} size={15} color={isActive ? "#F7E26B" : "#D4D4D8"} />
+                  <Feather name={item.icon} size={15} color={isActive ? PAPER.accent : PAPER.muted} />
                   <Text style={[styles.providerPillText, isActive ? styles.providerPillTextActive : null]}>{item.label}</Text>
                 </Pressable>
               );
@@ -135,7 +135,7 @@ export function OnboardingScreen() {
                 autoCorrect={false}
                 keyboardType="email-address"
                 placeholder={provider === "icloud" ? "name@icloud.com" : "name@gmail.com"}
-                placeholderTextColor="#71717A"
+                placeholderTextColor={PAPER.muted}
                 style={styles.fieldInput}
               />
             </View>
@@ -152,7 +152,7 @@ export function OnboardingScreen() {
                 autoCorrect={false}
                 secureTextEntry
                 placeholder="16-character app password"
-                placeholderTextColor="#71717A"
+                placeholderTextColor={PAPER.muted}
                 style={styles.fieldInput}
               />
             </View>
@@ -164,7 +164,7 @@ export function OnboardingScreen() {
             }
             style={styles.helpButton}
           >
-            <Feather name="external-link" size={16} color="#F4F4F5" />
+            <Feather name="external-link" size={16} color={PAPER.ink} />
             <Text style={styles.helpButtonText}>Create an app password</Text>
           </Pressable>
 
@@ -184,7 +184,7 @@ export function OnboardingScreen() {
           disabled={isLoading}
           style={[styles.submitButton, isLoading ? styles.submitButtonDisabled : null]}
         >
-          {isLoading ? <ActivityIndicator color="#111827" /> : <Text style={styles.submitButtonText}>Continue</Text>}
+          {isLoading ? <ActivityIndicator color={PAPER.page} /> : <Text style={styles.submitButtonText}>Continue</Text>}
         </Pressable>
       </View>
     </SafeAreaView>
@@ -194,13 +194,13 @@ export function OnboardingScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#09090B",
+    backgroundColor: PAPER.page,
   },
   container: {
     flex: 1,
     paddingHorizontal: 24,
     paddingBottom: 14,
-    backgroundColor: "#09090B",
+    backgroundColor: PAPER.page,
   },
   headerRow: {
     flexDirection: "row",
@@ -208,7 +208,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   headerTitle: {
-    color: "#E4E4E7",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.metaBold,
     fontSize: 15,
     fontWeight: "700",
     letterSpacing: 0.4,
@@ -239,33 +240,35 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     borderWidth: 1,
-    borderColor: "#3F3F46",
-    borderRadius: 14,
-    backgroundColor: "#18181B",
+    borderColor: PAPER.hairline,
+    borderRadius: 0,
+    backgroundColor: PAPER.surface,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
   providerPillActive: {
-    borderColor: "rgba(247,226,107,0.72)",
-    backgroundColor: "rgba(247,226,107,0.14)",
+    borderColor: PAPER.accent,
+    backgroundColor: PAPER.highlight,
   },
   providerPillText: {
-    color: "#D4D4D8",
+    color: PAPER.secondary,
+    fontFamily: PAPER_FONTS.metaMedium,
     fontSize: 14,
     fontWeight: "600",
   },
   providerPillTextActive: {
-    color: "#F7E26B",
+    color: PAPER.accent,
   },
   title: {
-    color: "#FAFAFA",
+    color: PAPER.ink,
     fontSize: 44,
     lineHeight: 50,
-    fontFamily: DISPLAY_FONT_FAMILY,
+    fontFamily: PAPER_FONTS.displayBold,
     fontWeight: "700",
   },
   subtitle: {
-    color: "#D4D4D8",
+    color: PAPER.secondary,
+    fontFamily: PAPER_FONTS.body,
     fontSize: 18,
     lineHeight: 28,
     marginTop: 16,
@@ -274,16 +277,18 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   fieldLabel: {
-    color: "#D4D4D8",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.metaBold,
     fontSize: 14,
     marginBottom: 8,
   },
   fieldInput: {
     borderWidth: 1,
-    borderColor: "#27272A",
-    borderRadius: 16,
-    backgroundColor: "#09090B",
-    color: "#F4F4F5",
+    borderColor: PAPER.hairline,
+    borderRadius: 0,
+    backgroundColor: PAPER.surface,
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.meta,
     fontSize: 16,
     paddingHorizontal: 16,
     paddingVertical: 16,
@@ -295,38 +300,40 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     borderWidth: 1,
-    borderColor: "#3F3F46",
-    borderRadius: 12,
+    borderColor: PAPER.hairline,
+    borderRadius: 0,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   helpButtonText: {
-    color: "#F4F4F5",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.metaMedium,
     fontSize: 14,
     fontWeight: "600",
   },
   infoCard: {
     marginTop: 20,
     borderWidth: 1,
-    borderColor: "#27272A",
-    borderRadius: 16,
-    backgroundColor: "#09090B",
+    borderColor: PAPER.hairline,
+    borderRadius: 0,
+    backgroundColor: PAPER.highlight,
     padding: 16,
   },
   infoTitle: {
-    color: "#F4F4F5",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.display,
     fontSize: 16,
-    fontFamily: DISPLAY_FONT_FAMILY,
     fontWeight: "700",
   },
   infoText: {
-    color: "#D4D4D8",
+    color: PAPER.secondary,
+    fontFamily: PAPER_FONTS.body,
     fontSize: 14,
     lineHeight: 22,
     marginTop: 8,
   },
   errorText: {
-    color: "#F87171",
+    color: PAPER.accent,
     fontSize: 14,
     lineHeight: 20,
     marginTop: 14,
@@ -334,16 +341,17 @@ const styles = StyleSheet.create({
   submitButton: {
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 999,
-    backgroundColor: "#F4F4F5",
+    borderRadius: 0,
+    backgroundColor: PAPER.ink,
     paddingHorizontal: 24,
     paddingVertical: 16,
   },
   submitButtonDisabled: {
-    backgroundColor: "#A1A1AA",
+    backgroundColor: PAPER.muted,
   },
   submitButtonText: {
-    color: "#111827",
+    color: PAPER.page,
+    fontFamily: PAPER_FONTS.metaBold,
     fontSize: 18,
     fontWeight: "600",
   },

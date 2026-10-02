@@ -15,12 +15,12 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const { setColorScheme } = useNativeWindColorScheme();
 
   useEffect(() => {
-    setColorScheme("dark");
+    setColorScheme("light");
   }, [setColorScheme]);
 
   const value = useMemo(
     () => ({
-      isDark: true,
+      isDark: false,
     }),
     [],
   );

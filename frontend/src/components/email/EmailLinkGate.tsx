@@ -2,9 +2,8 @@ import { ReactNode } from "react";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import Toast from "react-native-toast-message";
-import { useColorTheme } from "@/components/providers/color-theme-provider";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
 import {
   isLinkedAccountActive,
@@ -12,7 +11,7 @@ import {
   useGetLinkedAccountsQuery,
   useUnlinkAccountMutation,
 } from "@/redux/api/linkedAccountsApi";
-import { withOpacity } from "@/theme/color-theme";
+import { PAPER, PAPER_FONTS } from "@/theme/newspaper-theme";
 
 type EmailLinkGateProps = {
   title: string;
@@ -22,7 +21,6 @@ type EmailLinkGateProps = {
 };
 
 export function EmailLinkGate({ title, description, children, showLinkedStateWhenLinked = false }: EmailLinkGateProps) {
-  const { colors } = useColorTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { data: linkedAccounts = [], isLoading: isLoadingLinkedAccounts } = useGetLinkedAccountsQuery();
   const [unlinkAccount, { isLoading: isUnlinkingAccount }] = useUnlinkAccountMutation();
@@ -61,10 +59,10 @@ export function EmailLinkGate({ title, description, children, showLinkedStateWhe
 
   if (isLoadingLinkedAccounts) {
     return (
-      <View className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
-        <View className="flex-row items-center gap-2">
-          <ActivityIndicator size="small" color="#D4D4D8" />
-          <Text className="text-sm text-zinc-300">Checking linked account...</Text>
+      <View style={styles.card}>
+        <View style={styles.row}>
+          <ActivityIndicator size="small" color={PAPER.muted} />
+          <Text style={styles.mutedText}>Checking linked account...</Text>
         </View>
       </View>
     );
@@ -77,23 +75,23 @@ export function EmailLinkGate({ title, description, children, showLinkedStateWhe
   return (
     <>
       {linkedEmailAccount ? (
-        <View className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center gap-2">
-              <View className="h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: withOpacity(colors.primary, 0.14) }}>
-                <Feather name="check-circle" size={16} color={colors.primary} />
+        <View style={styles.card}>
+          <View style={styles.betweenRow}>
+            <View style={styles.row}>
+              <View style={styles.iconBox}>
+                <Feather name="check-circle" size={16} color={PAPER.accent} />
               </View>
-              <Text className="text-lg font-bold text-zinc-100">Linked Email</Text>
+              <Text style={styles.cardTitle}>Linked Email</Text>
             </View>
-            <View className="rounded-full bg-zinc-800 px-2 py-1">
-              <Text className="text-xs font-semibold text-zinc-300">Active</Text>
+            <View style={styles.activeChip}>
+              <Text style={styles.activeChipText}>Active</Text>
             </View>
           </View>
 
-          <Text className="mt-2 text-base font-semibold text-zinc-100">{linkedEmailAccount.email}</Text>
-          <Text className="mt-1 text-sm text-zinc-400">Provider: {linkedProvider === "icloud" ? "iCloud" : "Gmail"}</Text>
+          <Text style={styles.emailText}>{linkedEmailAccount.email}</Text>
+          <Text style={styles.mutedText}>Provider: {linkedProvider === "icloud" ? "iCloud" : "Gmail"}</Text>
 
-          <View className="mt-4 flex-row gap-3">
+          <View style={styles.actions}>
             <Pressable
               onPress={() =>
                 navigation.navigate("EmailCredentials", {
@@ -102,19 +100,18 @@ export function EmailLinkGate({ title, description, children, showLinkedStateWhe
                   email: linkedEmailAccount.email,
                 })
               }
-              className="rounded-xl border px-4 py-2"
-              style={{ borderColor: withOpacity(colors.primary, 0.45), backgroundColor: withOpacity(colors.primary, 0.08) }}
+              style={styles.primaryButton}
             >
-              <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
+              <Text style={styles.primaryButtonText}>
                 Edit credentials
               </Text>
             </Pressable>
 
-            <Pressable onPress={handleUnlink} disabled={isUnlinkingAccount} className="rounded-xl border px-4 py-2" style={{ borderColor: withOpacity(colors.secondary, 0.5) }}>
+            <Pressable onPress={handleUnlink} disabled={isUnlinkingAccount} style={styles.secondaryButton}>
               {isUnlinkingAccount ? (
-                <ActivityIndicator size="small" color={colors.secondary} />
+                <ActivityIndicator size="small" color={PAPER.muted} />
               ) : (
-                <Text className="text-sm font-semibold" style={{ color: colors.secondary }}>
+                <Text style={styles.secondaryButtonText}>
                   Unlink email
                 </Text>
               )}
@@ -122,16 +119,16 @@ export function EmailLinkGate({ title, description, children, showLinkedStateWhe
           </View>
         </View>
       ) : (
-        <View className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
-          <View className="flex-row items-center gap-2">
-            <View className="h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: withOpacity(colors.primary, 0.14) }}>
-              <Feather name="mail" size={16} color={colors.primary} />
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <View style={styles.iconBox}>
+              <Feather name="mail" size={16} color={PAPER.accent} />
             </View>
-            <Text className="text-lg font-bold text-zinc-100">{title}</Text>
+            <Text style={styles.cardTitle}>{title}</Text>
           </View>
-          <Text className="mt-2 text-sm text-zinc-400">{description}</Text>
+          <Text style={styles.mutedText}>{description}</Text>
 
-          <View className="mt-4 flex-row gap-3">
+          <View style={styles.actions}>
             <Pressable
               onPress={() =>
                 navigation.navigate("EmailCredentials", {
@@ -139,11 +136,10 @@ export function EmailLinkGate({ title, description, children, showLinkedStateWhe
                   provider: "gmail",
                 })
               }
-              className="flex-row items-center gap-2 rounded-xl border px-4 py-2"
-              style={{ borderColor: withOpacity(colors.primary, 0.45), backgroundColor: withOpacity(colors.primary, 0.08) }}
+              style={[styles.primaryButton, styles.inlineButton]}
             >
-              <Feather name="mail" size={14} color={colors.primary} />
-              <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
+              <Feather name="mail" size={14} color={PAPER.accent} />
+              <Text style={styles.primaryButtonText}>
                 Link Gmail
               </Text>
             </Pressable>
@@ -154,11 +150,10 @@ export function EmailLinkGate({ title, description, children, showLinkedStateWhe
                   provider: "icloud",
                 })
               }
-              className="flex-row items-center gap-2 rounded-xl border px-4 py-2"
-              style={{ borderColor: withOpacity(colors.primary, 0.45), backgroundColor: withOpacity(colors.primary, 0.08) }}
+              style={[styles.primaryButton, styles.inlineButton]}
             >
-              <Feather name="cloud" size={14} color={colors.primary} />
-              <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
+              <Feather name="cloud" size={14} color={PAPER.accent} />
+              <Text style={styles.primaryButtonText}>
                 Link iCloud
               </Text>
             </Pressable>
@@ -170,3 +165,21 @@ export function EmailLinkGate({ title, description, children, showLinkedStateWhe
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  card: { marginTop: 24, borderWidth: 1, borderColor: PAPER.hairline, backgroundColor: PAPER.surface, padding: 16, gap: 10 },
+  row: { flexDirection: "row", alignItems: "center", gap: 10 },
+  betweenRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  iconBox: { width: 32, height: 32, alignItems: "center", justifyContent: "center", backgroundColor: PAPER.highlight },
+  cardTitle: { color: PAPER.ink, fontFamily: PAPER_FONTS.display, fontSize: 20 },
+  activeChip: { borderWidth: 1, borderColor: PAPER.hairline, backgroundColor: PAPER.highlight, paddingHorizontal: 8, paddingVertical: 4 },
+  activeChipText: { color: PAPER.ink, fontFamily: PAPER_FONTS.metaBold, fontSize: 11, textTransform: "uppercase" },
+  emailText: { color: PAPER.ink, fontFamily: PAPER_FONTS.metaMedium, fontSize: 15, marginTop: 2 },
+  mutedText: { color: PAPER.secondary, fontFamily: PAPER_FONTS.body, fontSize: 14, lineHeight: 20 },
+  actions: { flexDirection: "row", gap: 10, marginTop: 8 },
+  primaryButton: { borderWidth: 1, borderColor: PAPER.accent, backgroundColor: PAPER.highlight, paddingHorizontal: 12, paddingVertical: 9, flexDirection: "row", alignItems: "center", gap: 6 },
+  inlineButton: { flex: 1, justifyContent: "center" },
+  primaryButtonText: { color: PAPER.accent, fontFamily: PAPER_FONTS.metaBold, fontSize: 12 },
+  secondaryButton: { borderWidth: 1, borderColor: PAPER.hairline, backgroundColor: PAPER.page, paddingHorizontal: 12, paddingVertical: 9, justifyContent: "center" },
+  secondaryButtonText: { color: PAPER.secondary, fontFamily: PAPER_FONTS.metaBold, fontSize: 12 },
+});

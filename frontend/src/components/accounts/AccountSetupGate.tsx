@@ -2,16 +2,16 @@ import { ReactNode, useMemo, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { ActivityIndicator, Animated, Image, LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Toast from "react-native-toast-message";
 import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { getBankLogoUrl } from "@/lib/bank-logos";
-import type { MainTabParamList } from "@/navigation/MainTabsNavigator";
+import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { useAddAccountMutation, useDeleteAccountMutation, useGetAccountsQuery, useUpdateAccountMutation } from "@/redux/api/accountsApi";
 import type { Account } from "@/redux/api/accountsApi";
 import { withOpacity } from "@/theme/color-theme";
-import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
+import { PAPER, PAPER_FONTS } from "@/theme/newspaper-theme";
 
 const CURRENCIES = ["INR", "USD", "EUR", "GBP", "AED", "SGD"];
 
@@ -36,7 +36,7 @@ export function AccountSetupGate({
   showPromptOnly = false,
   showAccountsList = false,
 }: AccountSetupGateProps) {
-  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useColorTheme();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<"create" | "edit">("create");
@@ -185,34 +185,32 @@ export function AccountSetupGate({
   };
 
   const cardPrompt = (
-    <View className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-      <View className="flex-row items-center gap-2">
-        <View className="h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: withOpacity(colors.primary, 0.14) }}>
+    <View style={styles.promptCard}>
+      <View style={styles.promptHeader}>
+        <View style={styles.promptIcon}>
           <Feather name="credit-card" size={16} color={colors.primary} />
         </View>
-        <Text className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{title}</Text>
+        <Text style={styles.promptTitle}>{title}</Text>
       </View>
-      <Text className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{description}</Text>
+      <Text style={styles.promptDescription}>{description}</Text>
 
-      <View className="mt-4 flex-row gap-3">
+      <View style={styles.promptActions}>
         <Pressable
           onPress={openCreateDrawer}
-          className="flex-row items-center gap-2 rounded-xl border px-4 py-2"
-          style={{ borderColor: withOpacity(colors.primary, 0.45), backgroundColor: withOpacity(colors.primary, 0.08) }}
+          style={[styles.promptButton, { borderColor: withOpacity(colors.primary, 0.45), backgroundColor: withOpacity(colors.primary, 0.08) }]}
         >
           <Feather name="plus" size={14} color={colors.primary} />
-          <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
+          <Text style={[styles.promptButtonText, { color: colors.primary }]}>
             Add account
           </Text>
         </Pressable>
         {showPromptOnly ? (
           <Pressable
             onPress={() => navigation.navigate("Accounts")}
-            className="flex-row items-center gap-2 rounded-xl border px-4 py-2"
-            style={{ borderColor: withOpacity(colors.secondary, 0.45), backgroundColor: withOpacity(colors.secondary, 0.08) }}
+            style={[styles.promptButton, { borderColor: withOpacity(colors.secondary, 0.45), backgroundColor: withOpacity(colors.secondary, 0.08) }]}
           >
             <Feather name="arrow-right-circle" size={14} color={colors.secondary} />
-            <Text className="text-sm font-semibold" style={{ color: colors.secondary }}>
+            <Text style={[styles.promptButtonText, { color: colors.secondary }]}>
               Go to Accounts
             </Text>
           </Pressable>
@@ -222,7 +220,7 @@ export function AccountSetupGate({
   );
 
   const accountCards = showAccountsList && hasAccounts ? (
-    <View className="mt-6 gap-3">
+    <View style={styles.accountCards}>
       {accounts.map((account) => {
         const logoUrl = getBankLogoUrl(account.domainIds[0]?.fromEmail);
         const domainCount = account.domainIds.length;
@@ -242,10 +240,10 @@ export function AccountSetupGate({
   return (
     <>
       {isLoadingAccounts ? (
-        <View className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <View className="flex-row items-center gap-2">
-            <ActivityIndicator size="small" />
-            <Text className="text-sm text-zinc-600 dark:text-zinc-300">Loading accounts...</Text>
+        <View style={styles.loadingCard}>
+          <View style={styles.promptHeader}>
+            <ActivityIndicator size="small" color={PAPER.accent} />
+            <Text style={styles.promptDescription}>Loading accounts...</Text>
           </View>
         </View>
       ) : shouldShowPrompt ? (
@@ -464,7 +462,7 @@ function InteractiveAccountCard({ account, logoUrl, domainCount, onPress }: Inte
         <View pointerEvents="none" style={styles.glowOrbLarge} />
         <View pointerEvents="none" style={styles.glowOrbSmall} />
 
-        <View className="flex-row items-start justify-between">
+        <View style={styles.accountCardTopRow}>
           <View>
             <Text style={styles.metaLine}>{account.currency}</Text>
           </View>
@@ -496,6 +494,16 @@ function InteractiveAccountCard({ account, logoUrl, domainCount, onPress }: Inte
 }
 
 const styles = StyleSheet.create({
+  promptCard: { marginTop: 24, borderTopWidth: 3, borderTopColor: PAPER.decorative, borderBottomWidth: 1, borderBottomColor: PAPER.hairline, backgroundColor: PAPER.surface, padding: 16 },
+  promptHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  promptIcon: { width: 32, height: 32, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: PAPER.hairline, backgroundColor: PAPER.highlight },
+  promptTitle: { color: PAPER.ink, fontFamily: PAPER_FONTS.display, fontSize: 20 },
+  promptDescription: { marginTop: 8, color: PAPER.secondary, fontFamily: PAPER_FONTS.body, fontSize: 14, lineHeight: 20 },
+  promptActions: { marginTop: 16, flexDirection: "row", gap: 10, flexWrap: "wrap" },
+  promptButton: { flexDirection: "row", alignItems: "center", gap: 7, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8 },
+  promptButtonText: { fontFamily: PAPER_FONTS.metaBold, fontSize: 11, letterSpacing: 0.5 },
+  accountCards: { marginTop: 20, gap: 10 },
+  loadingCard: { marginTop: 20, borderTopWidth: 3, borderTopColor: PAPER.decorative, borderBottomWidth: 1, borderBottomColor: PAPER.hairline, backgroundColor: PAPER.surface, padding: 16 },
   drawerScrollContent: {
     paddingBottom: 8,
   },
@@ -504,33 +512,31 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   drawerFieldCard: {
-    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "#111114",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 8,
   },
   drawerLabel: {
-    color: "#A1A1AA",
+    color: PAPER.secondary,
     fontSize: 12,
     fontWeight: "700",
     letterSpacing: 0.4,
     textTransform: "uppercase",
   },
   drawerInput: {
-    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    backgroundColor: "rgba(9,9,11,0.6)",
-    color: "#F4F4F5",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.page,
+    color: PAPER.ink,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
   },
   drawerHint: {
-    color: "#71717A",
+    color: PAPER.muted,
     fontSize: 11,
   },
   currencyWrap: {
@@ -539,27 +545,26 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   currencyChip: {
-    borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.page,
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
   currencyChipActive: {
-    borderColor: "rgba(255,255,255,0.38)",
-    backgroundColor: "rgba(255,255,255,0.16)",
+    borderColor: PAPER.ink,
+    backgroundColor: PAPER.highlight,
   },
   currencyChipText: {
-    color: "#D4D4D8",
+    color: PAPER.secondary,
     fontSize: 12,
     fontWeight: "700",
   },
   currencyChipTextActive: {
-    color: "#F4F4F5",
+    color: PAPER.ink,
   },
   formError: {
-    color: "#FB7185",
+    color: PAPER.accent,
     fontSize: 13,
     fontWeight: "600",
   },
@@ -570,50 +575,53 @@ const styles = StyleSheet.create({
   },
   drawerActionButton: {
     minWidth: 56,
-    borderRadius: 14,
     borderWidth: 1,
     paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   drawerDeleteButton: {
-    borderColor: "rgba(248,113,113,0.35)",
-    backgroundColor: "rgba(127,29,29,0.28)",
+    borderColor: PAPER.accent,
+    backgroundColor: "transparent",
     paddingHorizontal: 14,
   },
   drawerCancelButton: {
     flex: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    backgroundColor: "rgba(24,24,27,0.9)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
   },
   drawerSaveButton: {
     flex: 1,
-    borderColor: "rgba(255,255,255,0.35)",
-    backgroundColor: "rgba(255,255,255,0.16)",
+    borderColor: PAPER.accent,
+    backgroundColor: PAPER.accent,
   },
   drawerSaveButtonDisabled: {
     opacity: 0.72,
   },
   drawerCancelText: {
-    color: "#E4E4E7",
+    color: PAPER.ink,
     fontSize: 13,
     fontWeight: "700",
   },
   drawerSaveText: {
-    color: "#F4F4F5",
+    color: PAPER.page,
     fontSize: 13,
     fontWeight: "800",
   },
   accountCard: {
     minHeight: 162,
-    borderRadius: 30,
     paddingHorizontal: 18,
     paddingTop: 14,
     paddingBottom: 14,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    backgroundColor: "#101013",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
+  },
+  accountCardTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
   },
   glowOrbLarge: {
     position: "absolute",
@@ -622,7 +630,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     right: -60,
     bottom: -80,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: PAPER.highlight,
   },
   glowOrbSmall: {
     position: "absolute",
@@ -631,26 +639,25 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     right: 36,
     top: -82,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: PAPER.page,
   },
   metaLine: {
-    color: "#D4D4D8",
+    color: PAPER.secondary,
     fontSize: 13,
     lineHeight: 18,
     fontWeight: "500",
   },
   countBadge: {
-    borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
+    borderColor: PAPER.hairline,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    backgroundColor: "rgba(9,9,11,0.42)",
+    backgroundColor: PAPER.page,
   },
   countBadgeText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#E4E4E7",
+    color: PAPER.ink,
   },
   accountCardBody: {
     marginTop: 24,
@@ -663,24 +670,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   accountContextLine: {
-    color: "#E4E4E7",
+    color: PAPER.ink,
     fontSize: 18,
     lineHeight: 24,
     fontStyle: "italic",
-    fontFamily: DISPLAY_FONT_FAMILY,
-    fontWeight: "700",
+    fontFamily: PAPER_FONTS.bodyItalic,
   },
   accountTitleLine: {
     marginTop: 0,
     fontSize: 25,
     lineHeight: 29,
-    fontFamily: DISPLAY_FONT_FAMILY,
-    fontWeight: "700",
-    color: "#F4F4F5",
+    fontFamily: PAPER_FONTS.display,
+    color: PAPER.ink,
   },
   accountHintLine: {
     marginTop: 8,
-    color: "#A1A1AA",
+    color: PAPER.muted,
     fontSize: 12,
     letterSpacing: 0.2,
     textTransform: "uppercase",
@@ -688,10 +693,9 @@ const styles = StyleSheet.create({
   logoBadge: {
     width: 62,
     height: 62,
-    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
-    backgroundColor: "rgba(9,9,11,0.44)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.page,
     alignItems: "center",
     justifyContent: "center",
     padding: 9,
@@ -701,9 +705,8 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   logoFallback: {
-    color: "#F4F4F5",
+    color: PAPER.accent,
     fontSize: 30,
-    fontFamily: DISPLAY_FONT_FAMILY,
-    fontWeight: "700",
+    fontFamily: PAPER_FONTS.display,
   },
 });

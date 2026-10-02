@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
-import { Modal, Pressable, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { PAPER, PAPER_FONTS } from "@/theme/newspaper-theme";
 
 type DrawerProps = {
   open: boolean;
@@ -25,9 +26,9 @@ export function Drawer({ open, onOpenChange, children }: DrawerProps) {
       visible={open}
       onRequestClose={() => onOpenChange(false)}
     >
-      <View className="flex-1 justify-end">
-        <Pressable className="absolute inset-0" onPress={() => onOpenChange(false)}>
-          <View className="absolute inset-0 bg-black/15 dark:bg-black/25" />
+      <View style={styles.root}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => onOpenChange(false)}>
+          <View style={styles.backdrop} />
         </Pressable>
         {children}
       </View>
@@ -37,12 +38,9 @@ export function Drawer({ open, onOpenChange, children }: DrawerProps) {
 
 export function DrawerContent({ children }: DrawerContentProps) {
   return (
-    <SafeAreaView
-      edges={["bottom"]}
-      className="max-h-[88%] rounded-t-3xl border border-zinc-200 bg-zinc-50 px-5 pb-5 pt-3 dark:border-zinc-800 dark:bg-zinc-950"
-    >
-      <View className="mb-3 items-center">
-        <View className="h-1.5 w-12 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+    <SafeAreaView edges={["bottom"]} style={styles.content}>
+      <View style={styles.handleWrap}>
+        <View style={styles.handle} />
       </View>
       {children}
     </SafeAreaView>
@@ -50,13 +48,24 @@ export function DrawerContent({ children }: DrawerContentProps) {
 }
 
 export function DrawerHeader({ children }: DrawerContentProps) {
-  return <View className="mb-4">{children}</View>;
+  return <View style={styles.header}>{children}</View>;
 }
 
 export function DrawerTitle({ children }: DrawerTextProps) {
-  return <Text className="text-xl font-black tracking-tight text-zinc-900 dark:text-zinc-100">{children}</Text>;
+  return <Text style={styles.title}>{children}</Text>;
 }
 
 export function DrawerDescription({ children }: DrawerTextProps) {
-  return <Text className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">{children}</Text>;
+  return <Text style={styles.description}>{children}</Text>;
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1, justifyContent: "flex-end" },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(26,26,26,0.28)" },
+  content: { maxHeight: "90%", borderTopWidth: 3, borderTopColor: PAPER.decorative, backgroundColor: PAPER.page, paddingHorizontal: 24, paddingBottom: 20, paddingTop: 10 },
+  handleWrap: { alignItems: "center", marginBottom: 12 },
+  handle: { width: 44, height: 3, backgroundColor: PAPER.hairline },
+  header: { marginBottom: 16 },
+  title: { color: PAPER.ink, fontFamily: PAPER_FONTS.display, fontSize: 24, lineHeight: 28 },
+  description: { marginTop: 4, color: PAPER.secondary, fontFamily: PAPER_FONTS.bodyItalic, fontSize: 15, lineHeight: 21 },
+});

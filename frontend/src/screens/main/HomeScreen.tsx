@@ -1,282 +1,204 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import Svg, { Path } from "react-native-svg";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MocoLogo } from "@/components/moco-logo";
+import { ChartFrame, Factbox, Folio, Headline, Kicker, Masthead, NewspaperArticle, NewspaperLayout, NewspaperSection, PaperButton, Rule, Subhead } from "@/components/newspaper";
+import { EditorialLineChart } from "@/components/newspaper/charts";
 import { EditTransactionDrawer } from "@/components/transactions/EditTransactionDrawer";
-import { useTiltPress } from "@/hooks/use-tilt-press";
+import { formatAmount, getEffectiveAmount, getEffectiveDate, getMerchantName, getSignedExpenseAmount, isDebitTransaction } from "@/components/transactions/transaction-utils";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { isLinkedAccountActive, useGetLinkedAccountsQuery } from "@/redux/api/linkedAccountsApi";
+import { useGetMyInvestmentsQuery } from "@/redux/api/investmentsApi";
 import { useGetTransactionsQuery } from "@/redux/api/transactionsApi";
-import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
+import { PAPER, PAPER_FONTS } from "@/theme/newspaper-theme";
 
-const AnimatedSvg = Animated.createAnimatedComponent(Svg);
-const ARC_TAIL_ANGLE = 320;
-const ARC_SWEEP = 286;
-const ARC_SEGMENTS = 140;
-
-const polarToCartesian = (center: number, radius: number, angleInDegrees: number) => {
-  const angleInRadians = (angleInDegrees * Math.PI) / 180;
-  return {
-    x: center + radius * Math.cos(angleInRadians),
-    y: center + radius * Math.sin(angleInRadians),
-  };
+const formatCurrency = (value: number) => {
+  const numeric = Number(value) || 0;
+  if (numeric >= 10000000) return `₹${(numeric / 10000000).toFixed(2)}Cr`;
+  if (numeric >= 100000) return `₹${(numeric / 100000).toFixed(2)}L`;
+  return `₹${Math.round(numeric).toLocaleString("en-IN")}`;
 };
 
-const createShortArcPath = (center: number, radius: number, startAngle: number, endAngle: number) => {
-  const start = polarToCartesian(center, radius, startAngle);
-  const end = polarToCartesian(center, radius, endAngle);
-  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 0 0 ${end.x} ${end.y}`;
-};
+function MarketWatch({ investments }: { investments: ReturnType<typeof useGetMyInvestmentsQuery>["data"] }) {
+  const rows = useMemo(() => {
+    const result: { label: string; value: string; note: string }[] = [];
+    if (investments?.summary) result.push({ label: "Portfolio value", value: formatCurrency(investments.summary.totalValue), note: "current" });
+    for (const stock of (investments?.stocks || []).slice(0, 2)) {
+      result.push({ label: stock.ticker || stock.name, value: formatCurrency(stock.marketPrice), note: `${Number(stock.currentPercentage || 0).toFixed(1)}% holding` });
+    }
+    for (const fund of (investments?.mutualFunds || []).slice(0, 2)) {
+      result.push({ label: fund.amc || fund.name, value: formatCurrency(fund.currentValue), note: "fund value" });
+    }
+    return result.slice(0, 5);
+  }, [investments]);
+
+  return (
+    <View style={styles.marketWatch}>
+      <Text style={styles.marketTitle}>THE MARKETS</Text>
+      <Rule />
+      {rows.length ? rows.map((row) => (
+        <View key={`${row.label}-${row.note}`} style={styles.marketRow}>
+          <Text numberOfLines={1} style={styles.marketLabel}>{row.label}</Text>
+          <View style={styles.marketValueWrap}>
+            <Text numberOfLines={1} style={styles.marketValue}>{row.value}</Text>
+            <Text numberOfLines={1} style={styles.marketNote}>{row.note}</Text>
+          </View>
+        </View>
+      )) : <Text style={styles.marketEmpty}>Sync your portfolio to populate the market watch.</Text>}
+      <Text style={styles.marketCaption}>A quiet reading of the accounts already at work.</Text>
+    </View>
+  );
+}
 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { data: linkedAccounts = [] } = useGetLinkedAccountsQuery();
   const { data: transactions = [] } = useGetTransactionsQuery();
-  const { width } = useWindowDimensions();
+  const { data: investments } = useGetMyInvestmentsQuery();
   const [isRecordDrawerOpen, setIsRecordDrawerOpen] = useState(false);
   const hasLinkedEmail = linkedAccounts.some((account) => isLinkedAccountActive(account.isActive));
-  const totalLogged = transactions.length;
+  const latestTransactions = useMemo(() => [...transactions].sort((a, b) => getEffectiveDate(b).getTime() - getEffectiveDate(a).getTime()).slice(0, 5), [transactions]);
+  const portfolioValue = Number(investments?.summary?.totalValue) || 0;
+  const hasPortfolio = portfolioValue > 0;
 
-  const rotation = useRef(new Animated.Value(0)).current;
-  const plusPress = useTiltPress({ pressedScale: 0.93, tiltDegrees: 0.8, perspective: 900 });
-  const ringSize = Math.max(260, Math.min(340, width - 36));
-  const ringStrokeWidth = Math.max(20, Math.min(32, Math.round(ringSize * 0.09)));
-  const ringRadius = (ringSize - ringStrokeWidth) / 2;
-  const titleFontSize = Math.max(36, Math.min(56, Math.round(width * 0.12)));
-  const titleLineHeight = titleFontSize + 6;
-  const arcGeometry = useMemo(() => {
-    const center = ringSize / 2;
-
-    const segments = Array.from({ length: ARC_SEGMENTS }, (_, index) => {
-      const t0 = index / ARC_SEGMENTS;
-      const t1 = (index + 1) / ARC_SEGMENTS;
-      const startAngle = ARC_TAIL_ANGLE - ARC_SWEEP * t0;
-      const endAngle = ARC_TAIL_ANGLE - ARC_SWEEP * t1;
-      const alpha = 0.008 + 0.18 * Math.pow(1 - t1, 2.05);
-
-      return {
-        key: `seg-${index}`,
-        d: createShortArcPath(center, ringRadius, startAngle, endAngle),
-        alpha,
-      };
+  const edition = useMemo(() => {
+    const now = new Date();
+    const currentMonth = transactions.filter((transaction) => {
+      const date = getEffectiveDate(transaction);
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear() && !transaction.refunded;
     });
+    const spent = currentMonth.reduce((sum, transaction) => sum + Math.max(0, getSignedExpenseAmount(transaction)), 0);
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(now);
+      date.setDate(now.getDate() - (6 - index));
+      const value = transactions.reduce((sum, transaction) => {
+        const transactionDate = getEffectiveDate(transaction);
+        if (transaction.refunded || transactionDate.toDateString() !== date.toDateString()) return sum;
+        return sum + Math.max(0, getSignedExpenseAmount(transaction));
+      }, 0);
+      return { label: date.toLocaleDateString("en-IN", { weekday: "short" }), value: Math.round(value) };
+    });
+    return { spent, currentMonthCount: currentMonth.length, days };
+  }, [transactions]);
 
-    return {
-      segments,
-    };
-  }, [ringRadius, ringSize]);
-
-  useEffect(() => {
-    rotation.setValue(0);
-    const loop = Animated.loop(
-      Animated.timing(rotation, {
-        toValue: 1,
-        duration: 22000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-    );
-
-    loop.start();
-    return () => loop.stop();
-  }, [rotation]);
-
-  const ringSpinStyle = {
-    transform: [
-      {
-        rotate: rotation.interpolate({
-          inputRange: [0, 1],
-          outputRange: ["0deg", "360deg"],
-        }),
-      },
-    ],
-  };
+  const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.topBar}>
-          <View style={styles.logoWrap}>
-            <MocoLogo size={32} />
-          </View>
+      <NewspaperLayout scroll>
+        <Masthead title="MOCO" logo={<MocoLogo size={26} monochrome />} edition="Vol. I · No. 1" date={today} />
+        <Folio page="A1" section="THE DAILY EDITION" publication="MOCO" date={today} />
 
-          <View style={styles.pillsWrap}>
-            <Pressable
-              onPress={() => navigation.navigate("TotalTransactions", { totalTransactions: totalLogged })}
-              style={styles.pill}
-              accessibilityRole="button"
-              accessibilityLabel="View total transactions details"
-            >
-              <Text style={styles.pillText}>{totalLogged} total txns</Text>
-            </Pressable>
-          </View>
-
-          <Pressable
-            onPress={() => navigation.navigate("Settings")}
-            style={styles.settingsButton}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel="Open settings"
-          >
-            <Feather name="settings" size={18} color="#E4E4E7" />
+        <View style={styles.topline}>
+          <Text style={styles.toplineText}>PERSONAL FINANCE · THE MORNING EDITION</Text>
+          <Pressable onPress={() => navigation.navigate("Settings")} accessibilityRole="button" accessibilityLabel="Open settings">
+            <Feather name="settings" size={17} color={PAPER.ink} />
           </Pressable>
         </View>
 
-        <View style={styles.content}>
-          <Text style={[styles.title, { fontSize: titleFontSize, lineHeight: titleLineHeight }]}>Record a transaction?</Text>
-          {!hasLinkedEmail ? (
-            <Pressable
-              onPress={() =>
-                navigation.navigate("EmailCredentials", {
-                  mode: "create",
-                  provider: "gmail",
-                })
-              }
-              style={styles.linkHintButton}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel="Link email for automatic transaction sync"
-            >
-              <Text style={styles.linkHintText}>Want them automatic? Link your email.</Text>
-            </Pressable>
-          ) : null}
+        <NewspaperSection columns={24} gap={24} divider="bottom">
+          <NewspaperArticle span={16}>
+            <Kicker style={styles.inkKicker}>THE LEDGER</Kicker>
+            <Headline>Every rupee has a story.</Headline>
+            <Subhead>Today’s edition brings the movement of your money onto one readable page.</Subhead>
+            <View style={styles.leadMetric}>
+              <Text style={styles.metricLabel}>SPENT THIS MONTH</Text>
+              <Text style={styles.metricValue}>₹{Math.round(edition.spent).toLocaleString("en-IN")}</Text>
+              <Text style={styles.metricNote}>{edition.currentMonthCount} recorded {edition.currentMonthCount === 1 ? "entry" : "entries"}</Text>
+            </View>
+            <ChartFrame title="The week in spending" description="Daily recorded outflow · last seven days" number="FIG. 01 / LEDGER" source="Your recorded transactions">
+              <EditorialLineChart label="The week in spending" labels={edition.days.map((item) => item.label)} series={[{ label: "Outflow", values: edition.days.map((item) => item.value), highlight: true }]} unit="INR" />
+            </ChartFrame>
+            <Pressable onPress={() => navigation.navigate("Transactions")} style={styles.textLink}><Text style={styles.textLinkLabel}>VIEW ALL TRANSACTIONS →</Text></Pressable>
+          </NewspaperArticle>
 
-          <View style={[styles.orbStage, { width: ringSize, height: ringSize }]}>
-            <AnimatedSvg width={ringSize} height={ringSize} style={[styles.ring, ringSpinStyle]}>
-              {arcGeometry.segments.map((segment) => (
-                <Path
-                  key={segment.key}
-                  d={segment.d}
-                  stroke="#E4E4E7"
-                  strokeOpacity={segment.alpha}
-                  strokeWidth={ringStrokeWidth}
-                  strokeLinecap="butt"
-                  fill="none"
-                />
-              ))}
-            </AnimatedSvg>
+          <NewspaperArticle span={8}>
+            <MarketWatch investments={investments} />
+            <Factbox title="The connected edition">
+              <Text style={styles.factText}>{hasLinkedEmail ? "Your inbox is linked. Open the ledger whenever a new statement arrives." : "Link an inbox to bring statements into the ledger."}</Text>
+              {!hasLinkedEmail ? <PaperButton variant="quiet" onPress={() => navigation.navigate("EmailCredentials", { mode: "create", provider: "gmail" })}>Link email</PaperButton> : null}
+            </Factbox>
+          </NewspaperArticle>
+        </NewspaperSection>
 
-            <Pressable
-              onPress={() => setIsRecordDrawerOpen(true)}
-              onPressIn={plusPress.onPressIn}
-              onPressOut={plusPress.onPressOut}
-              onLayout={plusPress.onLayout}
-              accessibilityRole="button"
-              accessibilityLabel="Record transaction button"
-            >
-              <Animated.View style={[styles.plusButton, plusPress.animatedStyle]}>
-                <Feather name="plus" size={30} color="#09090B" />
-              </Animated.View>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-      <EditTransactionDrawer
-        mode="create"
-        transaction={null}
-        open={isRecordDrawerOpen}
-        onClose={() => setIsRecordDrawerOpen(false)}
-      />
+        <View style={styles.sectionSpace}><Rule variant="double" /></View>
+
+        <NewspaperSection columns={24} gap={24}>
+          <NewspaperArticle span={14}>
+            <Kicker style={styles.inkKicker}>PORTFOLIO DESK</Kicker>
+            <Headline weight="Medium">The money already at work.</Headline>
+            <Subhead>Holdings, statements and long views, gathered below the fold.</Subhead>
+            <View style={styles.portfolioLead}>
+              <Text style={styles.metricLabel}>CURRENT PORTFOLIO VALUE</Text>
+              <Text style={styles.portfolioValue}>{hasPortfolio ? formatCurrency(portfolioValue) : "Not yet reported"}</Text>
+              <Text style={styles.metricNote}>{hasPortfolio ? `${investments?.mutualFunds.length || 0} funds · ${investments?.stocks.length || 0} stocks` : "Save your PAN and sync a statement to begin."}</Text>
+            </View>
+            <View style={styles.linkRow}>
+              <Pressable onPress={() => navigation.navigate("Investments")} style={styles.textLink}><Text style={styles.textLinkLabel}>READ INVESTMENTS →</Text></Pressable>
+              {hasPortfolio ? <Pressable onPress={() => navigation.navigate("Stocks")} style={styles.textLink}><Text style={styles.textLinkLabel}>STOCKS →</Text></Pressable> : null}
+            </View>
+          </NewspaperArticle>
+
+          <NewspaperArticle span={10}>
+            <View style={styles.latestLedger}>
+              <Text style={styles.latestTitle}>LATEST ENTRIES</Text>
+              <Rule />
+              {latestTransactions.length ? latestTransactions.map((transaction) => {
+                const debit = isDebitTransaction(transaction);
+                return (
+                  <View key={transaction.clientTxnId} style={styles.latestRow}>
+                    <View style={styles.latestCopy}>
+                      <Text numberOfLines={1} style={styles.latestMerchant}>{getMerchantName(transaction)}</Text>
+                      <Text style={styles.latestDate}>{getEffectiveDate(transaction).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</Text>
+                    </View>
+                    <Text style={styles.latestAmount}>{debit ? "−" : "+"}₹{formatAmount(getEffectiveAmount(transaction))}</Text>
+                  </View>
+                );
+              }) : <Text style={styles.marketEmpty}>No entries in the ledger yet.</Text>}
+              <Pressable onPress={() => setIsRecordDrawerOpen(true)} style={styles.textLink}><Text style={styles.textLinkLabel}>RECORD AN ENTRY →</Text></Pressable>
+            </View>
+          </NewspaperArticle>
+        </NewspaperSection>
+      </NewspaperLayout>
+
+      <EditTransactionDrawer mode="create" transaction={null} open={isRecordDrawerOpen} onClose={() => setIsRecordDrawerOpen(false)} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#09090B",
-  },
-  container: {
-    flex: 1,
-    backgroundColor: "#09090B",
-    paddingHorizontal: 18,
-    paddingTop: 10,
-  },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  settingsButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(228,228,231,0.24)",
-    backgroundColor: "rgba(24,24,27,0.74)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pillsWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  pill: {
-    borderRadius: 999,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    backgroundColor: "rgba(39,39,42,0.94)",
-    borderWidth: 1,
-    borderColor: "rgba(228,228,231,0.12)",
-  },
-  pillText: {
-    color: "#F4F4F5",
-    fontSize: 12,
-    lineHeight: 14,
-    letterSpacing: 0.2,
-    fontWeight: "500",
-  },
-  logoWrap: {
-    width: 42,
-    height: 42,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  content: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingBottom: 110,
-  },
-  title: {
-    width: "88%",
-    textAlign: "center",
-    color: "#FAFAFA",
-    fontFamily: DISPLAY_FONT_FAMILY,
-    fontWeight: "700",
-    marginBottom: 10,
-  },
-  linkHintButton: {
-    marginBottom: 40,
-    paddingVertical: 2,
-    paddingHorizontal: 4,
-  },
-  linkHintText: {
-    color: "rgba(228,228,231,0.72)",
-    fontSize: 11,
-    lineHeight: 14,
-    textDecorationLine: "underline",
-  },
-  orbStage: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ring: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-  },
-  plusButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 999,
-    backgroundColor: "#F4F4F5",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  safeArea: { flex: 1, backgroundColor: PAPER.page },
+  topline: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: PAPER.hairline, paddingBottom: 10, marginBottom: 18 },
+  toplineText: { color: PAPER.secondary, fontFamily: PAPER_FONTS.metaMedium, fontSize: 9, letterSpacing: 1.1 },
+  inkKicker: { color: PAPER.ink },
+  leadMetric: { borderTopWidth: 3, borderTopColor: PAPER.ink, borderBottomWidth: 1, borderBottomColor: PAPER.hairline, paddingVertical: 16, marginTop: 18, marginBottom: 22 },
+  metricLabel: { color: PAPER.secondary, fontFamily: PAPER_FONTS.metaBold, fontSize: 10, letterSpacing: 1.05, marginBottom: 4 },
+  metricValue: { color: PAPER.ink, fontFamily: PAPER_FONTS.displayBold, fontSize: 44, lineHeight: 48 },
+  portfolioValue: { color: PAPER.ink, fontFamily: PAPER_FONTS.displayBold, fontSize: 34, lineHeight: 38 },
+  metricNote: { color: PAPER.secondary, fontFamily: PAPER_FONTS.bodyItalic, fontSize: 14, marginTop: 5 },
+  marketWatch: { borderLeftWidth: 1, borderLeftColor: PAPER.hairline, paddingLeft: 16, marginBottom: 24 },
+  marketTitle: { color: PAPER.ink, fontFamily: PAPER_FONTS.metaBold, fontSize: 18, lineHeight: 23, letterSpacing: 1.5, marginBottom: 10 },
+  marketRow: { minHeight: 58, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, borderBottomWidth: 1, borderBottomColor: PAPER.hairline },
+  marketLabel: { flex: 1, color: PAPER.body, fontFamily: PAPER_FONTS.display, fontSize: 18, lineHeight: 22 },
+  marketValueWrap: { alignItems: "flex-end", maxWidth: "52%" },
+  marketValue: { color: PAPER.ink, fontFamily: PAPER_FONTS.displayBold, fontSize: 18 },
+  marketNote: { color: PAPER.secondary, fontFamily: PAPER_FONTS.meta, fontSize: 9, marginTop: 2 },
+  marketCaption: { color: PAPER.secondary, fontFamily: PAPER_FONTS.bodyItalic, fontSize: 14, lineHeight: 20, marginTop: 14 },
+  marketEmpty: { color: PAPER.secondary, fontFamily: PAPER_FONTS.bodyItalic, fontSize: 14, lineHeight: 20, paddingVertical: 14 },
+  factText: { color: PAPER.body, fontFamily: PAPER_FONTS.body, fontSize: 14, lineHeight: 21, marginBottom: 12 },
+  sectionSpace: { marginVertical: 8 },
+  portfolioLead: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: PAPER.hairline, paddingVertical: 14, marginTop: 12 },
+  linkRow: { flexDirection: "row", flexWrap: "wrap", gap: 20 },
+  textLink: { paddingVertical: 8 },
+  textLinkLabel: { color: PAPER.ink, fontFamily: PAPER_FONTS.metaBold, fontSize: 10, letterSpacing: 0.85 },
+  latestLedger: { borderTopWidth: 3, borderTopColor: PAPER.ink, backgroundColor: PAPER.surface, paddingTop: 12 },
+  latestTitle: { color: PAPER.ink, fontFamily: PAPER_FONTS.metaBold, fontSize: 11, letterSpacing: 1.1 },
+  latestRow: { minHeight: 58, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, borderBottomWidth: 1, borderBottomColor: PAPER.hairline },
+  latestCopy: { flex: 1 },
+  latestMerchant: { color: PAPER.body, fontFamily: PAPER_FONTS.display, fontSize: 16 },
+  latestDate: { color: PAPER.muted, fontFamily: PAPER_FONTS.meta, fontSize: 9, marginTop: 3, textTransform: "uppercase" },
+  latestAmount: { color: PAPER.ink, fontFamily: PAPER_FONTS.display, fontSize: 15 },
 });

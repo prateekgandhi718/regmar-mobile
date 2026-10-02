@@ -1,6 +1,23 @@
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
+import { useFonts } from "expo-font";
+import {
+  CormorantGaramond_600SemiBold,
+  CormorantGaramond_700Bold,
+} from "@expo-google-fonts/cormorant-garamond";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
+import {
+  SourceSerif4_400Regular,
+  SourceSerif4_400Regular_Italic,
+  SourceSerif4_500Medium,
+  SourceSerif4_600SemiBold,
+  SourceSerif4_700Bold,
+} from "@expo-google-fonts/source-serif-4";
 import { AppProviders } from "@/components/providers/AppProviders";
 import { API_BASE_URL } from "@/lib/api";
 import {
@@ -16,11 +33,12 @@ import { AppNavigator } from "@/navigation/AppNavigator";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { setBootstrapped, setSession } from "@/redux/features/authSlice";
 import { configureGlobalTypography } from "@/theme/typography";
+import { PAPER } from "@/theme/newspaper-theme";
 
 configureGlobalTypography();
 
 function AppStatusBar() {
-  return <StatusBar style="light" />;
+  return <StatusBar style="dark" />;
 }
 
 function AuthBootstrap() {
@@ -130,8 +148,8 @@ function AuthBootstrap() {
 
   if (!isBootstrapped) {
     return (
-      <View className="flex-1 items-center justify-center bg-zinc-950">
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: PAPER.page }}>
+        <ActivityIndicator size="large" color={PAPER.accent} />
       </View>
     );
   }
@@ -140,6 +158,27 @@ function AuthBootstrap() {
 }
 
 export function AppRoot() {
+  const [fontsLoaded, fontError] = useFonts({
+    CormorantGaramond_600SemiBold,
+    CormorantGaramond_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_700Bold,
+    SourceSerif4_400Regular,
+    SourceSerif4_400Regular_Italic,
+    SourceSerif4_500Medium,
+    SourceSerif4_600SemiBold,
+    SourceSerif4_700Bold,
+  });
+
+  if (!fontsLoaded && !fontError) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: PAPER.page }}>
+        <ActivityIndicator color={PAPER.accent} />
+      </View>
+    );
+  }
+
   return (
     <AppProviders>
       <AppStatusBar />

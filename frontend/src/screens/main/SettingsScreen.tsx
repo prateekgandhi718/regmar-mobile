@@ -5,7 +5,6 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Alert, ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
-import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { clearAllAuthLocalStorage } from "@/lib/auth-storage";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { logout } from "@/redux/features/authSlice";
@@ -25,12 +24,11 @@ import {
 import { syncApi } from "@/redux/api/syncApi";
 import { useClearTransactionsMutation } from "@/redux/api/transactionsApi";
 import { transactionsApi } from "@/redux/api/transactionsApi";
-import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
+import { PAPER, PAPER_FONTS } from "@/theme/newspaper-theme";
 
 export function SettingsScreen() {
   const dispatch = useAppDispatch();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { colors } = useColorTheme();
   const { data: linkedAccounts = [], isLoading: isLoadingLinkedAccounts } = useGetLinkedAccountsQuery();
   const [clearTransactions, { isLoading: isClearingTransactions }] = useClearTransactionsMutation();
   const [unlinkAccount, { isLoading: isUnlinkingAccount }] = useUnlinkAccountMutation();
@@ -141,9 +139,9 @@ export function SettingsScreen() {
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <Pressable onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={8}>
-              <Feather name="arrow-left" size={18} color="#E4E4E7" />
+            <Feather name="arrow-left" size={18} color={PAPER.ink} />
             </Pressable>
-            <Text style={[styles.headerTitle, { color: colors.primary }]}>Settings</Text>
+            <Text style={styles.headerTitle}>Settings</Text>
           </View>
         </View>
 
@@ -151,7 +149,7 @@ export function SettingsScreen() {
           {isLoadingLinkedAccounts ? (
             <View style={styles.card}>
               <View style={styles.loadingRow}>
-                <ActivityIndicator size="small" color="#D4D4D8" />
+                <ActivityIndicator size="small" color={PAPER.muted} />
                 <Text style={styles.loadingText}>Checking linked account...</Text>
               </View>
             </View>
@@ -186,7 +184,7 @@ export function SettingsScreen() {
                   style={styles.button}
                 >
                   {isUnlinkingAccount ? (
-                    <ActivityIndicator size="small" color="#E4E4E7" />
+                    <ActivityIndicator size="small" color={PAPER.ink} />
                   ) : (
                     <Text style={styles.buttonText}>Unlink email</Text>
                   )}
@@ -246,13 +244,13 @@ export function SettingsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#09090B",
+    backgroundColor: PAPER.page,
   },
   container: {
     flex: 1,
     paddingHorizontal: 20,
     paddingTop: 10,
-    backgroundColor: "#09090B",
+    backgroundColor: PAPER.page,
   },
   headerRow: {
     flexDirection: "row",
@@ -267,15 +265,16 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 999,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(228,228,231,0.24)",
-    backgroundColor: "rgba(24,24,27,0.74)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
-    fontFamily: DISPLAY_FONT_FAMILY,
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.display,
     fontSize: 34,
     lineHeight: 38,
     fontWeight: "700",
@@ -286,10 +285,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   card: {
-    borderRadius: 22,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(228,228,231,0.12)",
-    backgroundColor: "rgba(24,24,27,0.72)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
     paddingHorizontal: 18,
     paddingVertical: 18,
   },
@@ -299,7 +298,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   loadingText: {
-    color: "#D4D4D8",
+    color: PAPER.secondary,
     fontSize: 14,
   },
   cardHeaderRow: {
@@ -313,22 +312,22 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cardTitle: {
-    color: "#FAFAFA",
-    fontFamily: DISPLAY_FONT_FAMILY,
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.display,
     fontSize: 22,
     lineHeight: 26,
     fontWeight: "700",
   },
   activeChip: {
-    borderRadius: 999,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(228,228,231,0.2)",
-    backgroundColor: "rgba(39,39,42,0.86)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.highlight,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   activeChipText: {
-    color: "#E4E4E7",
+    color: PAPER.ink,
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 0.4,
@@ -336,18 +335,19 @@ const styles = StyleSheet.create({
   },
   emailValue: {
     marginTop: 10,
-    color: "#FAFAFA",
+    color: PAPER.ink,
     fontSize: 18,
     fontWeight: "500",
   },
   providerText: {
     marginTop: 4,
-    color: "#B4B4BC",
+    color: PAPER.muted,
     fontSize: 14,
   },
   cardDescription: {
     marginTop: 8,
-    color: "#C4C4CC",
+    color: PAPER.secondary,
+    fontFamily: PAPER_FONTS.body,
     fontSize: 15,
     lineHeight: 24,
   },
@@ -358,16 +358,17 @@ const styles = StyleSheet.create({
   },
   button: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(228,228,231,0.32)",
-    backgroundColor: "rgba(39,39,42,0.6)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.page,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 13,
   },
   buttonText: {
-    color: "#E4E4E7",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.metaMedium,
     fontSize: 15,
     fontWeight: "700",
   },

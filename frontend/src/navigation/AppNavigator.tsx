@@ -1,18 +1,25 @@
-import { DarkTheme, NavigationContainer } from "@react-navigation/native";
+import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { MainTabsNavigator } from "@/navigation/MainTabsNavigator";
 import { useAppSelector } from "@/redux/hooks";
 import { OnboardingScreen } from "@/screens/auth/OnboardingScreen";
+import { AccountsScreen } from "@/screens/main/AccountsScreen";
+import { HomeScreen } from "@/screens/main/HomeScreen";
+import { InvestmentsScreen } from "@/screens/main/InvestmentsScreen";
 import { MutualFundsScreen } from "@/screens/main/MutualFundsScreen";
 import { EmailCredentialsScreen } from "@/screens/main/EmailCredentialsScreen";
 import { AccountSetupScreen } from "@/screens/main/AccountSetupScreen";
 import { SettingsScreen } from "@/screens/main/SettingsScreen";
 import { StocksScreen } from "@/screens/main/StocksScreen";
 import { TotalTransactionsScreen } from "@/screens/main/TotalTransactionsScreen";
+import { TransactionsScreen } from "@/screens/main/TransactionsScreen";
+import { PAPER } from "@/theme/newspaper-theme";
 
 export type RootStackParamList = {
   Onboarding: undefined;
-  MainTabs: undefined;
+  Home: undefined;
+  Transactions: undefined;
+  Investments: undefined;
+  Accounts: undefined;
   TotalTransactions: {
     totalTransactions: number;
   };
@@ -36,23 +43,33 @@ export function AppNavigator() {
   const navigatorKey = shouldShowMain ? "main" : "auth";
 
   return (
-    <NavigationContainer theme={DarkTheme}>
+    <NavigationContainer
+      theme={{
+        ...DefaultTheme,
+        colors: {
+          ...DefaultTheme.colors,
+          primary: PAPER.accent,
+          background: PAPER.page,
+          card: PAPER.surface,
+          text: PAPER.ink,
+          border: PAPER.hairline,
+          notification: PAPER.accent,
+        },
+      }}
+    >
       <Stack.Navigator
         key={navigatorKey}
-        initialRouteName={shouldShowMain ? "MainTabs" : "Onboarding"}
+        initialRouteName={shouldShowMain ? "Home" : "Onboarding"}
         screenOptions={{
           animation: "slide_from_right",
         }}
       >
         {shouldShowMain ? (
           <>
-            <Stack.Screen
-              name="MainTabs"
-              component={MainTabsNavigator}
-              options={{
-                headerShown: false,
-              }}
-            />
+            <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Transactions" component={TransactionsScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Investments" component={InvestmentsScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Accounts" component={AccountsScreen} options={{ headerShown: false }} />
             <Stack.Screen
               name="TotalTransactions"
               component={TotalTransactionsScreen}

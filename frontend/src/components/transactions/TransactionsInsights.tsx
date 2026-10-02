@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { BarChart, type barDataItem } from "react-native-gifted-charts";
-import { StyleSheet, Text, Pressable, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { Transaction } from "@/lib/transactions-types";
+import { EditorialGroupedBarChart, type GroupedBarDatum } from "@/components/newspaper/charts";
+import { ChartFrame } from "@/components/newspaper";
 import {
   formatAmount,
   getEffectiveAmount,
@@ -9,28 +10,13 @@ import {
   isExpenseTransaction,
   isInvestment,
 } from "@/components/transactions/transaction-utils";
+import { PAPER, PAPER_FONTS } from "@/theme/newspaper-theme";
 
-type TransactionsInsightsProps = {
-  transactions: Transaction[];
-};
-
-const EXPENSE_COLOR = "#E56A53";
-const INVESTMENT_COLOR = "#63AEE8";
-const CATEGORY_COLORS = ["#67C36B", "#A0BE58", "#58A0D1", "#E5C558", "#A062D7", "#6464D8", "#FF2E63", "#8D93FF"];
-
+type TransactionsInsightsProps = { transactions: Transaction[] };
 type DateRangeFilter = "30d" | "6m" | "12m" | "all";
-
-type MonthPoint = {
-  label: string;
-  fullLabel: string;
-  monthYear: string;
-  expenses: number;
-  investments: number;
-  total: number;
-};
+type MonthPoint = { label: string; fullLabel: string; monthYear: string; expenses: number; investments: number };
 
 const monthKey = (date: Date) => `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, "0")}`;
-
 const formatCompactNoCurrency = (value: number) => {
   const absolute = Math.abs(value);
   if (absolute >= 1_000_000) return `${(absolute / 1_000_000).toFixed(absolute % 1_000_000 === 0 ? 0 : 1)}M`;
@@ -38,19 +24,14 @@ const formatCompactNoCurrency = (value: number) => {
   return Math.round(absolute).toString();
 };
 
-const getMonthSeries = (transactions: Transaction[]): MonthPoint[] => {
+function getMonthSeries(transactions: Transaction[]): MonthPoint[] {
   const txs = transactions.filter((tx) => !tx.refunded);
   if (!txs.length) return [];
-
   const sorted = [...txs].sort((a, b) => getEffectiveDate(a).getTime() - getEffectiveDate(b).getTime());
-  const start = getEffectiveDate(sorted[0]);
-  const end = getEffectiveDate(sorted[sorted.length - 1]);
-  const startMonth = new Date(start.getFullYear(), start.getMonth(), 1);
-  const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
-
+  const cursor = new Date(getEffectiveDate(sorted[0]).getFullYear(), getEffectiveDate(sorted[0]).getMonth(), 1);
+  const end = new Date(getEffectiveDate(sorted[sorted.length - 1]).getFullYear(), getEffectiveDate(sorted[sorted.length - 1]).getMonth(), 1);
   const months: Date[] = [];
-  const cursor = new Date(startMonth);
-  while (cursor <= endMonth) {
+  while (cursor <= end) {
     months.push(new Date(cursor));
     cursor.setMonth(cursor.getMonth() + 1);
   }
@@ -58,413 +39,105 @@ const getMonthSeries = (transactions: Transaction[]): MonthPoint[] => {
   return months.map((date) => {
     let expenses = 0;
     let investments = 0;
-    const key = monthKey(date);
-
     txs.forEach((tx) => {
-      const txDate = getEffectiveDate(tx);
-      if (monthKey(txDate) !== key) return;
-
+      if (monthKey(getEffectiveDate(tx)) !== monthKey(date)) return;
       const amount = getEffectiveAmount(tx);
-      if (isInvestment(tx)) {
-        investments += amount;
-      } else if (isExpenseTransaction(tx)) {
-        expenses += amount;
-      }
+      if (isInvestment(tx)) investments += amount;
+      else if (isExpenseTransaction(tx)) expenses += amount;
     });
-
     return {
-      label: date.toLocaleDateString("en-IN", { month: "short" }).charAt(0).toUpperCase(),
+      label: date.toLocaleDateString("en-IN", { month: "short" }).slice(0, 3).toUpperCase(),
       fullLabel: date.toLocaleDateString("en-IN", { month: "short", year: "numeric" }).toUpperCase(),
       monthYear: date.toLocaleDateString("en-IN", { month: "short", year: "2-digit" }).toUpperCase(),
       expenses: Math.round(expenses),
       investments: Math.round(investments),
-      total: Math.round(expenses + investments),
     };
   });
-};
+}
 
 export function TransactionsInsights({ transactions }: TransactionsInsightsProps) {
   const [dateRange, setDateRange] = useState<DateRangeFilter>("all");
-
   const filteredTransactions = useMemo(() => {
     const now = new Date();
     if (dateRange === "all") return transactions;
-
-    const rangeStart = new Date(now);
-    if (dateRange === "30d") {
-      rangeStart.setDate(now.getDate() - 30);
-    } else if (dateRange === "6m") {
-      rangeStart.setMonth(now.getMonth() - 6);
-    } else {
-      rangeStart.setMonth(now.getMonth() - 12);
-    }
-
-    return transactions.filter((tx) => getEffectiveDate(tx).getTime() >= rangeStart.getTime());
-  }, [transactions, dateRange]);
+    const start = new Date(now);
+    if (dateRange === "30d") start.setDate(now.getDate() - 30);
+    else if (dateRange === "6m") start.setMonth(now.getMonth() - 6);
+    else start.setMonth(now.getMonth() - 12);
+    return transactions.filter((tx) => getEffectiveDate(tx).getTime() >= start.getTime());
+  }, [dateRange, transactions]);
 
   const monthSeries = useMemo(() => getMonthSeries(filteredTransactions), [filteredTransactions]);
-
   const selectedData = useMemo(() => {
-    if (!monthSeries.length) {
-      return {
-        avgExpenses: 0,
-        avgInvestments: 0,
-        rangeLabel: "",
-        categories: [] as Array<{ name: string; amount: number; percent: number; color: string }>,
-      };
-    }
-
-    const monthKeys = new Set(monthSeries.map((item) => item.fullLabel));
     let totalExpenses = 0;
     let totalInvestments = 0;
-    const categoryTotals = new Map<string, number>();
-
+    const categories = new Map<string, number>();
     filteredTransactions.forEach((tx) => {
       if (tx.refunded) return;
-      const txMonth = getEffectiveDate(tx).toLocaleDateString("en-IN", { month: "short", year: "numeric" }).toUpperCase();
-      if (!monthKeys.has(txMonth)) return;
-
       const amount = getEffectiveAmount(tx);
-      if (isInvestment(tx)) {
-        totalInvestments += amount;
-        return;
-      }
-      if (!isExpenseTransaction(tx)) return;
-
-      totalExpenses += amount;
-
-      if (tx.categoryId?.name) {
-        categoryTotals.set(tx.categoryId.name, (categoryTotals.get(tx.categoryId.name) || 0) + amount);
+      if (isInvestment(tx)) totalInvestments += amount;
+      else if (isExpenseTransaction(tx)) {
+        totalExpenses += amount;
+        if (tx.categoryId?.name) categories.set(tx.categoryId.name, (categories.get(tx.categoryId.name) || 0) + amount);
       }
     });
+    return {
+      avgExpenses: monthSeries.length ? totalExpenses / monthSeries.length : 0,
+      avgInvestments: monthSeries.length ? totalInvestments / monthSeries.length : 0,
+      rangeLabel: monthSeries.length > 1 ? `${monthSeries[0].monthYear} – ${monthSeries[monthSeries.length - 1].monthYear}` : monthSeries[0]?.monthYear || "",
+      categories: Array.from(categories.entries()).map(([name, amount]) => ({ name, amount, percent: totalExpenses ? (amount / totalExpenses) * 100 : 0 })),
+    };
+  }, [filteredTransactions, monthSeries]);
 
-    const categories = Array.from(categoryTotals.entries())
-      .map(([name, amount], index) => ({
-        name,
-        amount,
-        percent: totalExpenses ? (amount / totalExpenses) * 100 : 0,
-        color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
-      }))
-      .sort((a, b) => b.amount - a.amount);
-
-    const avgExpenses = totalExpenses / (monthSeries.length || 1);
-    const avgInvestments = totalInvestments / (monthSeries.length || 1);
-    const rangeLabel =
-      monthSeries.length > 1
-        ? `${monthSeries[0].monthYear} - ${monthSeries[monthSeries.length - 1].monthYear}`
-        : monthSeries[0].monthYear;
-
-    return { avgExpenses, avgInvestments, rangeLabel, categories };
-  }, [monthSeries, filteredTransactions]);
-
-  const chartData = useMemo<barDataItem[]>(
-    () =>
-      monthSeries.flatMap((point) => [
-        {
-          value: point.expenses,
-          frontColor: EXPENSE_COLOR,
-          label: "",
-          spacing: 4,
-          barBorderTopLeftRadius: 5,
-          barBorderTopRightRadius: 5,
-        },
-        {
-          value: point.investments,
-          frontColor: INVESTMENT_COLOR,
-          label: "",
-          labelComponent: () => <Text style={styles.xAxisCenteredLabel}>{point.label}</Text>,
-          spacing: 16,
-          barBorderTopLeftRadius: 5,
-          barBorderTopRightRadius: 5,
-        },
-      ]),
-    [monthSeries],
-  );
-
-  const maxTotal = useMemo(
-    () => Math.max(...monthSeries.map((point) => Math.max(point.expenses, point.investments)), 0),
-    [monthSeries],
-  );
-  const roundedMax = useMemo(() => {
-    if (!maxTotal) return 10_000;
-    const scale = maxTotal > 100_000 ? 10_000 : 5_000;
-    return Math.ceil(maxTotal / scale) * scale;
-  }, [maxTotal]);
-
-  const yAxisLabelTexts = useMemo(
-    () =>
-      [0, 1, 2, 3, 4, 5].map((index) => {
-        const value = (roundedMax / 5) * index;
-        return `${Math.round(value / 1000)}K`;
-      }),
-    [roundedMax],
-  );
+  const groupedData = useMemo<GroupedBarDatum[]>(() => monthSeries.map((point) => ({
+    label: point.label,
+    values: [
+      { label: "Expense", value: point.expenses },
+      { label: "Investment", value: point.investments, highlight: true },
+    ],
+  })), [monthSeries]);
 
   if (!monthSeries.length) return null;
 
   return (
-    <View style={styles.card}>
+    <ChartFrame title="The monthly ledger" description="Expense and investment movement by month" number="FIG. 02 / COMPARISON" source="Your recorded transactions">
       <View style={styles.filterRow}>
-        {[
-          { key: "30d", label: "30D" },
-          { key: "6m", label: "6M" },
-          { key: "12m", label: "12M" },
-          { key: "all", label: "All Time" },
-        ].map((item) => {
-          const active = dateRange === item.key;
-          return (
-            <Pressable
-              key={item.key}
-              onPress={() => setDateRange(item.key as DateRangeFilter)}
-              style={[styles.filterChip, active ? styles.filterChipActive : null]}
-            >
-              <Text style={[styles.filterChipText, active ? styles.filterChipTextActive : null]}>{item.label}</Text>
-            </Pressable>
-          );
-        })}
+        {[{ key: "30d", label: "30D" }, { key: "6m", label: "6M" }, { key: "12m", label: "12M" }, { key: "all", label: "ALL TIME" }].map((item) => (
+          <Pressable key={item.key} onPress={() => setDateRange(item.key as DateRangeFilter)} style={[styles.filter, dateRange === item.key ? styles.filterActive : null]}>
+            <Text style={[styles.filterText, dateRange === item.key ? styles.filterTextActive : null]}>{item.label}</Text>
+          </Pressable>
+        ))}
       </View>
-
-      <View style={styles.headerBlock}>
-        <Text style={styles.eyebrow}>Month Average</Text>
-        <Text style={styles.range}>{selectedData.rangeLabel}</Text>
-        <View style={styles.avgRow}>
-          <Text style={styles.avgExpense}>
-            -₹{formatCompactNoCurrency(selectedData.avgExpenses)}
-            {dateRange === "all" || dateRange === "6m" || dateRange === "12m" ? "/mth" : ""}
-          </Text>
-          <Text style={styles.avgInvestment}>
-            ₹{formatCompactNoCurrency(selectedData.avgInvestments)}
-            {dateRange === "all" || dateRange === "6m" || dateRange === "12m" ? "/mth" : ""}
-          </Text>
-        </View>
+      <View style={styles.averageRow}>
+        <View><Text style={styles.eyebrow}>MONTH AVERAGE</Text><Text style={styles.range}>{selectedData.rangeLabel}</Text></View>
+        <View style={styles.averageValues}><Text style={styles.expense}>−₹{formatCompactNoCurrency(selectedData.avgExpenses)}</Text><Text style={styles.investment}>₹{formatCompactNoCurrency(selectedData.avgInvestments)}</Text></View>
       </View>
-
-      <View style={styles.chartWrap}>
-        <BarChart
-          data={chartData}
-          height={230}
-          noOfSections={5}
-          maxValue={roundedMax}
-          barWidth={10}
-          spacing={8}
-          initialSpacing={6}
-          endSpacing={6}
-          roundedTop
-          roundedBottom={false}
-          xAxisColor="rgba(255,255,255,0.18)"
-          yAxisColor="transparent"
-          yAxisTextStyle={styles.yAxisText}
-          xAxisLabelTextStyle={styles.xAxisText}
-          hideYAxisText={false}
-          yAxisLabelTexts={yAxisLabelTexts}
-          showVerticalLines
-          verticalLinesColor="rgba(255,255,255,0.14)"
-          verticalLinesThickness={1}
-          rulesColor="rgba(255,255,255,0.14)"
-          rulesThickness={1}
-          dashWidth={2}
-          dashGap={4}
-          rulesType="dashed"
-          xAxisThickness={1}
-          disablePress
-          disableScroll
-        />
-      </View>
-
-      <View style={styles.legendRow}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: EXPENSE_COLOR }]} />
-          <Text style={styles.legendText}>Expense</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: INVESTMENT_COLOR }]} />
-          <Text style={styles.legendText}>Investment</Text>
-        </View>
-      </View>
-
-      {selectedData.categories.length ? (
-        <View style={styles.section}>
-          <View style={styles.splitBar}>
-            {selectedData.categories.map((category) => (
-              <View
-                key={category.name}
-                style={[styles.splitSegment, { width: `${Math.max(category.percent, 3)}%`, backgroundColor: category.color }]}
-              />
-            ))}
-          </View>
-          <View style={styles.categoryLegendWrap}>
-            {selectedData.categories.map((category) => (
-              <View key={category.name} style={styles.categoryLegendItem}>
-                <View style={[styles.categoryLegendDot, { backgroundColor: category.color }]} />
-                <Text style={styles.splitLegendName}>{category.name}</Text>
-                <Text style={styles.splitLegendPercent}>{Math.round(category.percent)}%</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-    </View>
+      <EditorialGroupedBarChart label="Monthly expenses and investments" data={groupedData} unit="INR" />
+      <View style={styles.legendRow}><View style={styles.legendItem}><View style={[styles.dot, { backgroundColor: PAPER.ink }]} /><Text style={styles.legend}>Expense</Text></View><View style={styles.legendItem}><View style={[styles.dot, { backgroundColor: PAPER.secondary }]} /><Text style={styles.legend}>Investment</Text></View></View>
+      {selectedData.categories.length ? <View style={styles.categorySection}><View style={styles.splitBar}>{selectedData.categories.map((category, index) => <View key={category.name} style={[styles.splitSegment, { width: `${Math.max(category.percent, 3)}%`, backgroundColor: index === 0 ? PAPER.ink : index % 2 === 0 ? PAPER.secondary : PAPER.muted }]} />)}</View><View style={styles.categoryLegend}>{selectedData.categories.map((category) => <Text key={category.name} style={styles.categoryText}>{category.name} {Math.round(category.percent)}%</Text>)}</View></View> : null}
+    </ChartFrame>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "#101114",
-    paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 16,
-    gap: 12,
-  },
-  filterRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  filterChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    backgroundColor: "rgba(255,255,255,0.06)",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  filterChipActive: {
-    borderColor: "rgba(255,255,255,0.35)",
-    backgroundColor: "rgba(255,255,255,0.16)",
-  },
-  filterChipText: {
-    color: "#A1A1AA",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  filterChipTextActive: {
-    color: "#F4F4F5",
-  },
-  headerBlock: {
-    gap: 4,
-  },
-  eyebrow: {
-    color: "#8E8E95",
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-  },
-  range: {
-    color: "#F4F4F5",
-    fontSize: 22,
-    fontWeight: "800",
-  },
-  avgRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    marginTop: 2,
-  },
-  avgExpense: {
-    color: "#E56A53",
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  avgInvestment: {
-    color: "#63AEE8",
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  chartWrap: {
-    marginTop: 4,
-  },
-  xAxisText: {
-    color: "#8E8E95",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  xAxisCenteredLabel: {
-    color: "#8E8E95",
-    fontSize: 12,
-    fontWeight: "700",
-    transform: [{ translateX: -7 }],
-    textAlign: "center",
-    width: 20,
-  },
-  yAxisText: {
-    color: "#8E8E95",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  legendRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-  },
-  legendText: {
-    color: "#A1A1AA",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  section: {
-    gap: 10,
-  },
-  splitBar: {
-    height: 18,
-    borderRadius: 999,
-    overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.08)",
-    flexDirection: "row",
-  },
-  splitSegment: {
-    height: "100%",
-  },
-  splitLegendWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  splitLegendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginRight: 8,
-  },
-  splitLegendName: {
-    color: "#E4E4E7",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  splitLegendPercent: {
-    color: "#8E8E95",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  categoryLegendWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  categoryLegendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginRight: 8,
-  },
-  categoryLegendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    marginTop: 1,
-  },
+  filterRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 16 },
+  filter: { borderWidth: 1, borderColor: PAPER.hairline, paddingHorizontal: 9, paddingVertical: 6 },
+  filterActive: { backgroundColor: PAPER.ink, borderColor: PAPER.ink },
+  filterText: { fontFamily: PAPER_FONTS.metaMedium, color: PAPER.secondary, fontSize: 10, letterSpacing: 0.6 },
+  filterTextActive: { color: PAPER.page },
+  averageRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: PAPER.hairline, paddingBottom: 12, marginBottom: 12 },
+  eyebrow: { fontFamily: PAPER_FONTS.metaBold, color: PAPER.secondary, fontSize: 10, letterSpacing: 0.8 },
+  range: { fontFamily: PAPER_FONTS.display, color: PAPER.ink, fontSize: 20, marginTop: 2 },
+  averageValues: { alignItems: "flex-end", gap: 2 },
+  expense: { fontFamily: PAPER_FONTS.metaBold, color: PAPER.ink, fontSize: 12 },
+  investment: { fontFamily: PAPER_FONTS.metaBold, color: PAPER.secondary, fontSize: 12 },
+  legendRow: { flexDirection: "row", gap: 16, marginTop: 10 },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
+  legend: { fontFamily: PAPER_FONTS.meta, color: PAPER.secondary, fontSize: 11 },
+  dot: { width: 8, height: 8, marginRight: 5 },
+  categorySection: { marginTop: 18 },
+  splitBar: { height: 10, flexDirection: "row", backgroundColor: PAPER.hairline },
+  splitSegment: { height: "100%" },
+  categoryLegend: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
+  categoryText: { fontFamily: PAPER_FONTS.meta, color: PAPER.secondary, fontSize: 10 },
 });

@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { Feather } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import { CategoryIcon } from "@/components/category-icon";
-import { useColorTheme } from "@/components/providers/color-theme-provider";
 import { EditTransactionDrawer } from "@/components/transactions/EditTransactionDrawer";
 import { QuickTagDrawer } from "@/components/transactions/QuickTagDrawer";
 import { TransactionDetailDrawer } from "@/components/transactions/TransactionDetailDrawer";
@@ -22,12 +23,12 @@ import {
   isDebitTransaction,
 } from "@/components/transactions/transaction-utils";
 import type { Transaction } from "@/lib/transactions-types";
+import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { useGetAccountsQuery } from "@/redux/api/accountsApi";
 import { isLinkedAccountActive, useGetLinkedAccountsQuery } from "@/redux/api/linkedAccountsApi";
 import { useSyncTransactionsMutation } from "@/redux/api/syncApi";
 import { useGetTransactionsQuery } from "@/redux/api/transactionsApi";
-import { withOpacity } from "@/theme/color-theme";
-import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
+import { PAPER, PAPER_FONTS } from "@/theme/newspaper-theme";
 
 type DayGroup = {
   dayKey: string;
@@ -43,14 +44,14 @@ type MonthGroup = {
   days: DayGroup[];
 };
 
-const FALLBACK_ICON_COLOR = "#D4D4D8";
+const FALLBACK_ICON_COLOR = PAPER.secondary;
 const ICON_CHIP_SIZE = 54;
 const ICON_SIZE = 24;
 const formatFullCurrency = (value: number) => `₹${formatAmount(Math.abs(value))}`;
 
 
 export function TransactionsScreen() {
-  const { colors } = useColorTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [syncTransactions, { isLoading: isSyncing }] = useSyncTransactionsMutation();
   const { data: linkedAccounts, isLoading: isLinkedLoading } = useGetLinkedAccountsQuery();
   const { data: accounts = [] } = useGetAccountsQuery();
@@ -143,26 +144,27 @@ export function TransactionsScreen() {
 
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-black">
-      <View className="flex-1">
-        <View className="w-full flex-row items-center justify-between px-6 pt-3">
-          <Text style={styles.headingText}>Transactions</Text>
+    <SafeAreaView edges={["top"]} style={styles.safeArea}>
+      <View style={styles.container}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.backLink}><Feather name="arrow-left" size={14} color={PAPER.ink} /><Text style={styles.backLabel}>BACK TO FRONT PAGE</Text></Pressable>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.eyebrow}>THE LEDGER · A2</Text>
+            <Text style={styles.headingText}>Transactions</Text>
+          </View>
           {isEmailLinked && hasAccountWithDomain ? (
             <Pressable
               onPress={handleSync}
               disabled={isSyncing}
-              className="rounded-xl px-3 py-2"
-              style={{
-                backgroundColor: isSyncing ? withOpacity(colors.primary, 0.25) : withOpacity(colors.primary, 0.12),
-              }}
+              style={[styles.syncButton, { opacity: isSyncing ? 0.55 : 1 }]}
             >
-              <View className="flex-row items-center gap-2">
+              <View style={styles.syncContent}>
                 {isSyncing ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
+                  <ActivityIndicator size="small" color={PAPER.accent} />
                 ) : (
-                  <Feather name="refresh-cw" size={14} color={colors.primary} />
+                  <Feather name="refresh-cw" size={14} color={PAPER.accent} />
                 )}
-                <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
+                <Text style={styles.syncText}>
                   Sync
                 </Text>
               </View>
@@ -170,12 +172,12 @@ export function TransactionsScreen() {
           ) : null}
         </View>
 
-        <View className="flex-1 px-6 pt-6">
+        <View style={styles.content}>
           {isLinkedLoading || isTransactionsLoading ? (
             <View style={styles.infoCard}>
-              <View className="flex-row items-center gap-2">
-                <ActivityIndicator size="small" color="#D4D4D8" />
-                <Text className="text-sm text-zinc-300">Loading transactions...</Text>
+              <View style={styles.syncContent}>
+                <ActivityIndicator size="small" color={PAPER.accent} />
+                <Text style={styles.loadingText}>Loading transactions...</Text>
               </View>
             </View>
           ) : groupedTransactions.length === 0 ? (
@@ -318,67 +320,83 @@ function TransactionRow({ transaction, onPress, onTagPress }: TransactionRowProp
 }
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: PAPER.page },
+  container: { flex: 1, backgroundColor: PAPER.page },
+  backLink: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 4 },
+  backLabel: { color: PAPER.secondary, fontFamily: PAPER_FONTS.metaBold, fontSize: 10, letterSpacing: 0.8 },
+  header: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 12, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: PAPER.hairline },
+  content: { flex: 1, paddingHorizontal: 20, paddingTop: 18 },
+  eyebrow: { fontFamily: PAPER_FONTS.metaBold, color: PAPER.accent, fontSize: 10, letterSpacing: 1, marginBottom: 3 },
   headingText: {
-    fontSize: 34,
-    lineHeight: 38,
-    color: "#F4F4F5",
-    fontFamily: DISPLAY_FONT_FAMILY,
-    fontWeight: "700",
+    fontSize: 38,
+    lineHeight: 42,
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.displayBold,
   },
+  syncButton: { borderWidth: 1, borderColor: PAPER.accent, paddingHorizontal: 10, paddingVertical: 8 },
+  syncContent: { flexDirection: "row", alignItems: "center", gap: 7 },
+  syncText: { color: PAPER.accent, fontFamily: PAPER_FONTS.metaBold, fontSize: 11, letterSpacing: 0.7, textTransform: "uppercase" },
   infoCard: {
     marginTop: 8,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(24,24,27,0.7)",
-    paddingHorizontal: 18,
-    paddingVertical: 18,
+    borderTopWidth: 3,
+    borderTopColor: PAPER.decorative,
+    borderBottomWidth: 1,
+    borderBottomColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
   },
+  loadingText: { color: PAPER.secondary, fontFamily: PAPER_FONTS.body, fontSize: 14 },
   emptyWrap: {
     marginTop: 24,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(228,228,231,0.12)",
-    backgroundColor: "rgba(24,24,27,0.72)",
+    borderTopWidth: 3,
+    borderTopColor: PAPER.decorative,
+    borderBottomWidth: 1,
+    borderBottomColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
     paddingHorizontal: 18,
     paddingVertical: 18,
     gap: 8,
   },
   emptyTitle: {
-    color: "#FAFAFA",
+    color: PAPER.ink,
     fontSize: 22,
     lineHeight: 26,
-    fontFamily: DISPLAY_FONT_FAMILY,
-    fontWeight: "700",
+    fontFamily: PAPER_FONTS.display,
   },
   emptySubtitle: {
-    color: "#A1A1AA",
+    color: PAPER.secondary,
+    fontFamily: PAPER_FONTS.body,
     fontSize: 14,
     lineHeight: 20,
   },
   scrollContent: {
-    gap: 20,
-    paddingBottom: 140,
+    gap: 24,
+    paddingBottom: 32,
   },
   monthSection: {
-    gap: 10,
+    gap: 12,
   },
   monthHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 4,
+    paddingHorizontal: 0,
+    borderTopWidth: 3,
+    borderTopColor: PAPER.decorative,
+    paddingTop: 10,
   },
   monthTitle: {
-    color: "#A1A1AA",
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: "700",
+    color: PAPER.ink,
+    fontSize: 22,
+    lineHeight: 26,
+    fontFamily: PAPER_FONTS.display,
     letterSpacing: 1.2,
   },
   monthTotal: {
     fontSize: 18,
-    fontWeight: "800",
+    fontFamily: PAPER_FONTS.metaBold,
+    color: PAPER.accent,
   },
   dayBlock: {
     gap: 10,
@@ -390,42 +408,39 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   dayLabel: {
-    color: "#A1A1AA",
+    color: PAPER.secondary,
     fontSize: 15,
-    fontWeight: "700",
+    fontFamily: PAPER_FONTS.metaMedium,
   },
   dayTotal: {
     fontSize: 16,
-    fontWeight: "800",
+    fontFamily: PAPER_FONTS.metaBold,
   },
   dayExpenseText: {
-    color: "#B0B0B4",
+    color: PAPER.accent,
   },
   dayIncomeText: {
-    color: "#86EFAC",
+    color: PAPER.blueInk,
   },
   dayTransactions: {
     gap: 8,
   },
   rowSeparator: {
     height: 1,
-    backgroundColor: "rgba(255,255,255,0.07)",
+    backgroundColor: PAPER.hairline,
     marginVertical: 8,
     marginHorizontal: 8,
   },
   transactionRow: {
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "#0F1016",
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
     overflow: "hidden",
     paddingHorizontal: 10,
     paddingVertical: 11,
-    shadowColor: "#000000",
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 2,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   rowContent: {
     position: "relative",
@@ -443,10 +458,10 @@ const styles = StyleSheet.create({
   categoryIconChip: {
     width: ICON_CHIP_SIZE,
     height: ICON_CHIP_SIZE,
-    borderRadius: 17,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.24)",
-    backgroundColor: "rgba(255,255,255,0.09)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.highlight,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -460,15 +475,15 @@ const styles = StyleSheet.create({
     paddingLeft: 2,
   },
   merchantLine: {
-    color: "#F4F4F5",
-    fontFamily: "System",
-    fontWeight: "800",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.bodyMedium,
     fontSize: 15,
     lineHeight: 19,
     letterSpacing: 0.25,
   },
   accountLine: {
-    color: "#8F9099",
+    color: PAPER.muted,
+    fontFamily: PAPER_FONTS.metaMedium,
     fontSize: 12,
     letterSpacing: 0.9,
     fontWeight: "700",
@@ -479,10 +494,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.11)",
+    backgroundColor: PAPER.highlight,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.24)",
+    borderColor: PAPER.hairline,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
@@ -490,14 +504,14 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 999,
-    backgroundColor: "#D4D4D8",
+    backgroundColor: PAPER.ink,
     alignItems: "center",
     justifyContent: "center",
   },
   tagText: {
-    color: "#E4E4E7",
+    color: PAPER.ink,
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: PAPER_FONTS.metaMedium,
   },
   amountCell: {
     minWidth: 112,
@@ -507,13 +521,13 @@ const styles = StyleSheet.create({
   amountText: {
     fontSize: 17,
     lineHeight: 21,
-    fontWeight: "800",
+    fontFamily: PAPER_FONTS.display,
     letterSpacing: 0.1,
   },
   debitText: {
-    color: "#F4F4F5",
+    color: PAPER.accent,
   },
   creditText: {
-    color: "#A7F3D0",
+    color: PAPER.blueInk,
   },
 });

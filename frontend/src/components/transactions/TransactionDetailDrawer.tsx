@@ -7,6 +7,7 @@ import { getBankLogoUrl } from "@/lib/bank-logos";
 import type { Transaction } from "@/lib/transactions-types";
 import { useDeleteTransactionMutation } from "@/redux/api/transactionsApi";
 import { formatAmount, getEffectiveAmount, getEffectiveDate, getMerchantName, isDebitTransaction } from "@/components/transactions/transaction-utils";
+import { PAPER, PAPER_FONTS } from "@/theme/newspaper-theme";
 
 type TransactionDetailDrawerProps = {
   transaction: Transaction | null;
@@ -65,7 +66,7 @@ export function TransactionDetailDrawer({
           <View style={styles.summaryCard}>
             <View style={styles.summaryLeft}>
               <View style={styles.iconWrap}>
-                {transaction.categoryId ? <CategoryIcon name={transaction.categoryId.name} size={22} color="#D4D4D8" /> : null}
+                {transaction.categoryId ? <CategoryIcon name={transaction.categoryId.name} size={22} color={PAPER.secondary} /> : null}
               </View>
               <View style={styles.summaryTextWrap}>
                 <Text numberOfLines={2} style={styles.merchantText}>
@@ -89,7 +90,7 @@ export function TransactionDetailDrawer({
             <View style={styles.categoryRow}>
               <View style={styles.smallCategoryIcon}>
                 {isManualEntry ? (
-                  <Feather name="edit-3" size={16} color="#D4D4D8" />
+                  <Feather name="edit-3" size={16} color={PAPER.secondary} />
                 ) : bankLogoUrl ? (
                   <Image source={{ uri: bankLogoUrl }} style={styles.bankLogo} resizeMode="contain" />
                 ) : (
@@ -107,7 +108,7 @@ export function TransactionDetailDrawer({
             <Text style={styles.infoLabel}>CATEGORY</Text>
             <View style={styles.categoryRow}>
               <View style={styles.smallCategoryIcon}>
-                <CategoryIcon name={transaction.categoryId?.name} size={18} color="#D4D4D8" />
+                <CategoryIcon name={transaction.categoryId?.name} size={18} color={PAPER.secondary} />
               </View>
               <Text style={styles.infoValue}>{(transaction.categoryId?.name || "Uncategorized").toUpperCase()}</Text>
             </View>
@@ -141,10 +142,10 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     overflow: "hidden",
-    borderRadius: 24,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "#111114",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
     padding: 14,
     flexDirection: "row",
     alignItems: "center",
@@ -161,10 +162,10 @@ const styles = StyleSheet.create({
   iconWrap: {
     width: 48,
     height: 48,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 0,
+    backgroundColor: PAPER.highlight,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: PAPER.hairline,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -173,44 +174,46 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   merchantText: {
-    color: "#F4F4F5",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.display,
     fontSize: 16,
-    fontWeight: "800",
   },
   metaText: {
-    color: "#A1A1AA",
+    color: PAPER.muted,
+    fontFamily: PAPER_FONTS.meta,
     fontSize: 11,
     letterSpacing: 0.3,
   },
   amountText: {
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.display,
     zIndex: 1,
     fontSize: 24,
-    fontWeight: "900",
   },
   debitText: {
-    color: "#F4F4F5",
+    color: PAPER.ink,
   },
   creditText: {
-    color: "#16C784",
+    color: PAPER.accent,
   },
   infoCard: {
-    borderRadius: 18,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "#111114",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
     padding: 14,
     gap: 8,
   },
   infoLabel: {
-    color: "#71717A",
+    color: PAPER.muted,
+    fontFamily: PAPER_FONTS.metaBold,
     fontSize: 10,
     letterSpacing: 0.6,
-    fontWeight: "700",
   },
   infoValue: {
-    color: "#E4E4E7",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.bodyMedium,
     fontSize: 14,
-    fontWeight: "600",
   },
   categoryRow: {
     flexDirection: "row",
@@ -220,29 +223,29 @@ const styles = StyleSheet.create({
   smallCategoryIcon: {
     width: 34,
     height: 34,
-    borderRadius: 10,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: PAPER.highlight,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: PAPER.hairline,
   },
   bankLogo: {
     width: 24,
     height: 24,
   },
   bankFallback: {
-    color: "#D4D4D8",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.display,
     fontSize: 13,
-    fontWeight: "800",
   },
   accountInfoWrap: {
     flex: 1,
   },
   accountMeta: {
-    color: "#71717A",
+    color: PAPER.muted,
+    fontFamily: PAPER_FONTS.meta,
     fontSize: 12,
-    fontWeight: "700",
   },
   actionsRow: {
     flexDirection: "row",
@@ -251,33 +254,34 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
-    borderRadius: 14,
+    borderRadius: 0,
     paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
   },
   primaryAction: {
-    borderColor: "rgba(255,255,255,0.28)",
-    backgroundColor: "rgba(255,255,255,0.12)",
+    borderColor: PAPER.ink,
+    backgroundColor: PAPER.highlight,
   },
   actionPrimaryText: {
-    color: "#E4E4E7",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.metaBold,
     fontSize: 13,
     fontWeight: "800",
   },
   deleteButton: {
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(239,68,68,0.4)",
-    backgroundColor: "rgba(127,29,29,0.22)",
+    borderColor: PAPER.accent,
+    backgroundColor: "transparent",
     paddingVertical: 11,
     alignItems: "center",
     marginTop: 4,
   },
   deleteText: {
-    color: "#FB7185",
+    color: PAPER.accent,
+    fontFamily: PAPER_FONTS.metaBold,
     fontSize: 13,
-    fontWeight: "700",
   },
 });

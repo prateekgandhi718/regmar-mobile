@@ -11,9 +11,9 @@ export type SemanticColors = ThemePalette & {
 };
 
 export const DEFAULT_THEME_PALETTE: ThemePalette = {
-  primary: "#F4F4F5",
-  secondary: "#F4C84A",
-  tertiary: "#69E3B0",
+  primary: "#7A1F1F",
+  secondary: "#EDF0EC",
+  tertiary: "#1B2A4A",
 };
 
 type RGB = {

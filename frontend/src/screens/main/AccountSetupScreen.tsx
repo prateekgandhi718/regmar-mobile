@@ -7,7 +7,7 @@ import Toast from "react-native-toast-message";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
 import { useAddAccountMutation } from "@/redux/api/accountsApi";
-import { DISPLAY_FONT_FAMILY } from "@/theme/typography";
+import { PAPER, PAPER_FONTS } from "@/theme/newspaper-theme";
 
 const parseDomainNames = (value: string) =>
   value
@@ -66,7 +66,7 @@ export function AccountSetupScreen() {
       <View style={[styles.container, { paddingTop: Math.max(insets.top, 8) }]}>
         <View style={styles.headerRow}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={8}>
-            <Feather name="arrow-left" size={18} color="#E4E4E7" />
+            <Feather name="arrow-left" size={18} color={PAPER.ink} />
           </Pressable>
           <Text style={styles.headerTitle}>Add account</Text>
           <View style={styles.headerSpacer} />
@@ -89,7 +89,7 @@ export function AccountSetupScreen() {
                 }}
                 autoCapitalize="words"
                 placeholder="HDFC Bank"
-                placeholderTextColor="#71717A"
+                placeholderTextColor={PAPER.muted}
                 style={styles.fieldInput}
               />
             </View>
@@ -105,7 +105,7 @@ export function AccountSetupScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 placeholder="alerts@hdfcbank.net, noreply@hdfcbank.com"
-                placeholderTextColor="#71717A"
+                placeholderTextColor={PAPER.muted}
                 style={styles.fieldInput}
               />
               <Text style={styles.fieldHint}>
@@ -123,7 +123,7 @@ export function AccountSetupScreen() {
                 }}
                 keyboardType="number-pad"
                 placeholder="1234"
-                placeholderTextColor="#71717A"
+                placeholderTextColor={PAPER.muted}
                 style={styles.fieldInput}
               />
             </View>
@@ -133,7 +133,7 @@ export function AccountSetupScreen() {
         </ScrollView>
 
         <Pressable onPress={handleSave} disabled={isSaving} style={[styles.saveButton, isSaving ? styles.saveButtonDisabled : null]}>
-          {isSaving ? <ActivityIndicator color="#111827" /> : <Text style={styles.saveButtonText}>Save account</Text>}
+          {isSaving ? <ActivityIndicator color={PAPER.page} /> : <Text style={styles.saveButtonText}>Save account</Text>}
         </Pressable>
       </View>
     </SafeAreaView>
@@ -143,13 +143,13 @@ export function AccountSetupScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#09090B",
+    backgroundColor: PAPER.page,
   },
   container: {
     flex: 1,
     paddingHorizontal: 24,
     paddingBottom: 14,
-    backgroundColor: "#09090B",
+    backgroundColor: PAPER.page,
   },
   headerRow: {
     flexDirection: "row",
@@ -159,15 +159,16 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 999,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(228,228,231,0.24)",
-    backgroundColor: "rgba(24,24,27,0.74)",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
-    color: "#E4E4E7",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.metaBold,
     fontSize: 15,
     fontWeight: "700",
     letterSpacing: 0.4,
@@ -183,15 +184,16 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   title: {
-    color: "#FAFAFA",
+    color: PAPER.ink,
     fontSize: 44,
     lineHeight: 50,
-    fontFamily: DISPLAY_FONT_FAMILY,
+    fontFamily: PAPER_FONTS.displayBold,
     fontWeight: "700",
   },
   subtitle: {
     marginTop: 12,
-    color: "#D4D4D8",
+    color: PAPER.secondary,
+    fontFamily: PAPER_FONTS.body,
     fontSize: 17,
     lineHeight: 28,
   },
@@ -201,42 +203,45 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     marginBottom: 8,
-    color: "#D4D4D8",
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.metaBold,
     fontSize: 13,
   },
   fieldInput: {
-    borderRadius: 16,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: "rgba(228,228,231,0.14)",
-    backgroundColor: "rgba(24,24,27,0.92)",
-    color: "#F4F4F5",
+    borderColor: PAPER.hairline,
+    backgroundColor: PAPER.surface,
+    color: PAPER.ink,
+    fontFamily: PAPER_FONTS.meta,
     paddingHorizontal: 14,
     paddingVertical: 13,
     fontSize: 15,
   },
   fieldHint: {
     marginTop: 8,
-    color: "#A1A1AA",
+    color: PAPER.muted,
     fontSize: 12,
     lineHeight: 18,
   },
   errorText: {
-    color: "#F87171",
+    color: PAPER.accent,
     fontSize: 13,
   },
   saveButton: {
     marginTop: "auto",
-    borderRadius: 999,
-    backgroundColor: "#F4F4F5",
+    borderRadius: 0,
+    backgroundColor: PAPER.ink,
     paddingVertical: 15,
     alignItems: "center",
     justifyContent: "center",
   },
   saveButtonDisabled: {
-    backgroundColor: "#A1A1AA",
+    backgroundColor: PAPER.muted,
   },
   saveButtonText: {
-    color: "#111827",
+    color: PAPER.page,
+    fontFamily: PAPER_FONTS.metaBold,
     fontSize: 18,
     fontWeight: "700",
   },
